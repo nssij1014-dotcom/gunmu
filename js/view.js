@@ -1,6 +1,7 @@
 /* 표 확대·축소: Ctrl+마우스 휠(노트북 터치패드 두 손가락 확대 포함), Ctrl + = / - / 0, 휴대폰 두 손가락 확대, 오른쪽 아래 [-][100%][+][맞춤] (10~200%).
  * 표 영역(#view 안의 table.xl)만 확대하고 버튼 줄은 그대로. 배율은 이 기기(localStorage)에 기억. 인쇄·저장 엑셀에는 영향 없음.
- * (Flask 앱 templates/_view.js 와 같은 파일) */
+ * (Flask 앱 templates/_view.js 와 같은 파일)
+ * 틀 고정: 머리 줄(일자·요일, No·날짜·요일)은 세로 스크롤 때, 시간외근무의 "계" 열까지는 가로 스크롤 때 고정. */
 (function (root) {
   'use strict';
   const KEY = 'gunmu.zoom', MIN = 0.1, MAX = 2;
@@ -14,6 +15,17 @@
 .zoombox button { font: inherit; font-size: 15px; font-weight: bold; min-width: 34px; height: 32px; padding: 0 6px;
   border: 0; border-radius: 6px; background: #fff; color: #111; cursor: pointer; }
 .zoombox button.pct, .zoombox button.fit { min-width: 60px; font-size: 14px; }
+@media screen {
+  #view table.xl td.fz-t, #view table.xl td.fz-l { position: sticky; z-index: 2; }
+  #view table.xl td.fz-t { top: var(--ft); }
+  #view table.xl td.fz-l { left: var(--fl); }
+  #view table.xl td.fz-t.fz-l { z-index: 3; }
+  /* 고정 칸은 배경이 겹친 테두리를 가리므로 테두리를 그림자로 다시 그림 (x0: 첫 열, y0: 머리 첫 줄) */
+  #view table.xl td.bd.fz-t, #view table.xl td.bd.fz-l { box-shadow: inset -1px -1px 0 #000; }
+  #view table.xl td.bd.fz-x0 { box-shadow: inset -1px -1px 0 #000, inset 1px 0 0 #000; }
+  #view table.xl td.bd.fz-y0 { box-shadow: inset -1px -1px 0 #000, inset 0 1px 0 #000; }
+  #view table.xl td.bd.fz-x0.fz-y0 { box-shadow: inset -1px -1px 0 #000, inset 1px 1px 0 #000; }
+}
 @media print { .zoombox { display: none !important; } #view table.xl { zoom: 1; } }`;
 
   function set(nz, cx, cy, lo) {
@@ -39,6 +51,49 @@
     const avail = view.clientWidth - 24;
     if (natural > 0) { set(Math.floor(avail / natural * 100) / 100); view.scrollLeft = 0; }
   }
+
+  /** 틀 고정: '일자' 또는 'No' 칸이 있는 머리 줄부터 첫 자료 줄 전까지는 위에, '계' 열까지는 왼쪽에 고정 (화면에서만) */
+  function freeze(t) {
+    if (t.dataset.fz) return;
+    t.dataset.fz = '1';
+    const widths = [...t.querySelectorAll('col')].map(c => parseFloat(c.style.width) || 0);
+    const rows = [...t.rows], busy = [], pos = new Map();   // 칸마다 [시작 열]
+    rows.forEach((r, ri) => {
+      let col = 0;
+      [...r.cells].forEach(c => {
+        while (busy[ri] && busy[ri][col]) col++;
+        pos.set(c, col);
+        for (let i = 0; i < c.rowSpan; i++) for (let j = 0; j < c.colSpan; j++) (busy[ri + i] = busy[ri + i] || [])[col + j] = 1;
+        col += c.colSpan;
+      });
+    });
+    const txt = c => c.textContent.replace(/\s+/g, '');
+    const h0 = rows.findIndex(r => [...r.cells].some(c => txt(c) === '일자' || txt(c) === 'No'));
+    if (h0 < 0) return;
+    const h1 = Math.max(...[...rows[h0].cells].map(c => h0 + c.rowSpan));   // 첫 자료 줄
+    const gye = [...rows[h0].cells].find(x => txt(x) === "계");
+    const k = gye ? pos.get(gye) + gye.colSpan : 0;   // 왼쪽 고정 열 수
+    const lefts = [0];
+    widths.forEach((w, i) => { lefts[i + 1] = lefts[i] + w; });
+    const tops = {};
+    let y = 0;
+    for (let ri = h0; ri < h1; ri++) { tops[ri] = y; y += parseFloat(rows[ri].style.height) || rows[ri].offsetHeight; }
+    rows.forEach((r, ri) => {
+      if (ri < h0) return;
+      [...r.cells].forEach(c => {
+        const col = pos.get(c);
+        const top = ri < h1, left = col + c.colSpan <= k;
+        if (!top && !left) return;
+        if (top) { c.classList.add('fz-t'); c.style.setProperty('--ft', tops[ri] + 'px'); }
+        // 왼쪽 고정은 1px 더 왼쪽에 붙여 지나가는 칸이 틈으로 비치지 않게
+        if (left) { c.classList.add('fz-l'); c.style.setProperty('--fl', (lefts[col] - 1) + 'px'); }
+        if (col === 0) c.classList.add('fz-x0');
+        if (ri === h0) c.classList.add('fz-y0');
+        if (!c.style.background) c.style.background = '#fff';
+      });
+    });
+  }
+  const freezeAll = () => view && view.querySelectorAll('table.xl').forEach(freeze);
 
   const dist = e => Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
   const mid = e => ({ x: (e.touches[0].clientX + e.touches[1].clientX) / 2, y: (e.touches[0].clientY + e.touches[1].clientY) / 2 });
@@ -85,9 +140,13 @@
     v.addEventListener('touchend', e => { if (e.touches.length < 2) d0 = 0; });
     document.addEventListener('gesturestart', e => e.preventDefault());   // 아이폰 사파리 화면 전체 확대 막기
 
+    freezeAll();
+    new MutationObserver(ms => { if (ms.some(m => [...m.addedNodes].some(n => n.querySelector && (n.matches('table.xl') || n.querySelector('table.xl'))))) freezeAll(); })
+      .observe(v, { childList: true, subtree: true });   // 웹 앱은 달을 바꿀 때 표를 새로 그림
+
     view.style.setProperty('--z', String(z));
     label.textContent = Math.round(z * 100) + '%';
   }
 
-  root.ZoomView = { init, set, fit, get: () => z };
+  root.ZoomView = { init, set, fit, freeze: freezeAll, get: () => z };
 })(this);
