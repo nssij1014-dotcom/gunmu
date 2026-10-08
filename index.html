@@ -34,7 +34,12 @@
   .tabs button.on { background: #fff; font-weight: bold; }
   section.page { display: none; }
   section.page.on { display: block; }
-  .wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 12px 16px 24px; }
+  /* 표 영역(#view)이 창 남은 높이를 채우고 스스로 스크롤 → 가로 스크롤바가 늘 창 맨 아래. 표는 가로 가운데 */
+  html, body { height: 100%; }
+  #app:not([hidden]) { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+  #app > .bar, #app > .hint, #app > .mine-hint, #app > .tabs { flex: none; }
+  #view { flex: 1 1 auto; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; background: #eef1f5; }
+  .wrap { width: max-content; margin: 0 auto; padding: 12px 16px 24px; }
   table.xl { border-collapse: collapse; table-layout: fixed; background: #fff; color: #000; }
   /* 엑셀처럼: 줄바꿈 없는 칸은 옆 빈칸으로 글자가 넘치고, 줄바꿈 칸은 칸 안에서 줄을 바꾼다 */
   table.xl td { padding: 0 2px; overflow: visible; white-space: pre; line-height: 1.15; font-size: 11pt; }
@@ -55,12 +60,15 @@
   #file { display: none; }
 
   /* 인쇄: 고른 시트 하나만 */
+  /* 휴대폰: 버튼 줄이 화면을 많이 차지하므로 화면 전체가 함께 스크롤 (위 규칙보다 뒤에 두어야 함) */
+  @media (max-width: 700px) { #app:not([hidden]) { display: block; height: auto; } #view { overflow: visible; } .wrap { padding: 8px 8px 20px; } }
   @media print {
     .bar, .tabs, .hint, .foot, .start { display: none !important; }
     body { background: #fff; }
     section.page { display: none !important; }
     section.page.print-target { display: block !important; }
-    .wrap { padding: 0 !important; overflow: visible !important; }
+    .wrap { padding: 0 !important; overflow: visible !important; margin: 0 !important; }
+    #app:not([hidden]), #view { display: block !important; height: auto !important; overflow: visible !important; }
     table.xl td.edited { color: inherit; font-weight: normal; }
     td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
@@ -97,11 +105,13 @@
   <div class="hint duty">수정 모드: 근무 칸을 눌러 입력하세요 (예: 7/5, G/E, 건7/5, 병G/E, 공7/5, 1/7C). 칸을 비우면 원래 패턴으로 돌아갑니다. 바뀐 칸은 빨간 글씨로 표시되고 이 기기에 바로 보관됩니다.</div>
   <div class="hint grp">근무조 수정: 오른쪽 '근무 조' 아래 칸(조·호실, 이름, 1공구·2공구 전화)을 눌러 고치세요. 이름은 '1.홍길동'처럼 번호(또는 글자)와 점을 앞에 두세요. 바꾼 내용은 모든 달과 시간외 시트에 반영되고, 칸을 비우면 원래 값으로 돌아갑니다.</div>
   <div class="tabs" id="tabs"></div>
+  <div id="view">
   <div id="pages"></div>
   <div class="foot">
     <div id="tplInfo"></div>
     저장하면 원본에서 바뀐 칸만 고친 새 엑셀 파일(근무표_YYYY년MM월)을 내려받습니다. 시간외근무1·2·통계는 근무표를 바탕으로 이 앱이 계산합니다.<br>
     <button id="btnReload">다른 원본 파일 불러오기</button>
+  </div>
   </div>
 </div>
 
@@ -110,6 +120,7 @@
 <script src="js/xlsx.js"></script>
 <script src="js/store.js"></script>
 <script src="js/mine.js"></script>
+<script src="js/view.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 /* 오프라인용: 앱 파일을 기기에 담아 두고 인터넷 없이 연다. 파일을 고치면 VERSION을 올린다. */
-const VERSION = 'gunmu-v2';
-const FILES = ['./', 'index.html', 'manifest.webmanifest', 'js/jszip.min.js', 'js/calc.js', 'js/xlsx.js', 'js/store.js', 'js/mine.js', 'js/app.js',
+const VERSION = 'gunmu-v3';
+const FILES = ['./', 'index.html', 'manifest.webmanifest', 'js/jszip.min.js', 'js/calc.js', 'js/xlsx.js', 'js/store.js', 'js/mine.js', 'js/view.js', 'js/app.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png'];
 
 self.addEventListener('install', e => {

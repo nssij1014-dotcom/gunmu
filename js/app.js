@@ -255,6 +255,7 @@
     $('file').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) pickFile(f); };
     const pages = $('pages');
     Mine.init({ button: $('btnMine'), sheet: '#sheet', container: pages, isEditing: () => !!S.mode });
+    ZoomView.init($('view'));
     pages.addEventListener('focusout', e => { if (editable(e.target)) commit(e.target); });
     pages.addEventListener('focusin', e => { if (editable(e.target)) e.target.dataset.before = e.target.innerText.trim(); });
     pages.addEventListener('keydown', e => {
