@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#1f4e79">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="근무표">
@@ -60,8 +60,16 @@
   #file { display: none; }
 
   /* 인쇄: 고른 시트 하나만 */
-  /* 휴대폰: 버튼 줄이 화면을 많이 차지하므로 화면 전체가 함께 스크롤 (위 규칙보다 뒤에 두어야 함) */
-  @media (max-width: 700px) { #app:not([hidden]) { display: block; height: auto; } #view { overflow: visible; } .wrap { padding: 8px 8px 20px; } }
+  /* 휴대폰: 버튼 줄·시트 탭은 위에 고정된 채 각각 한 줄(옆으로 밀어 보기), 표 영역만 스크롤·확대 (위 규칙보다 뒤에 두어야 함) */
+  @media (max-width: 700px) {
+    .bar { position: static; flex-wrap: nowrap; overflow-x: auto; white-space: nowrap; padding: 6px 8px; gap: 6px; scrollbar-width: none; }
+    .bar > *, .bar .prints > * { flex: none; }
+    .bar .prints { flex-wrap: nowrap; }
+    .bar .sp { display: none; }
+    .bar select, .bar button { font-size: 14px; padding: 5px 8px; }
+    .tabs { padding: 6px 8px 0; scrollbar-width: none; } .tabs button { flex: none; }
+    .wrap { padding: 8px 8px 20px; }
+  }
   @media print {
     .bar, .tabs, .hint, .foot, .start { display: none !important; }
     body { background: #fff; }
