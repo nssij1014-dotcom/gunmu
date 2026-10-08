@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1f4e79">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="근무표">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>순찰 근무표</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "맑은 고딕", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+         background: #eef1f5; color: #111; }
+  .bar { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 8px;
+         align-items: center; padding: 10px 16px; background: #1f4e79; color: #fff; }
+  .bar select, .bar button { font: inherit; font-size: 15px; padding: 6px 10px; border-radius: 6px;
+         border: 1px solid #c7d3e0; background: #fff; color: #111; }
+  .bar button { cursor: pointer; font-weight: bold; }
+  .bar button.primary { background: #ffd966; border-color: #e0b830; }
+  .bar button.on { background: #c6efce; border-color: #2e7d32; }
+  .bar .prints { display: flex; gap: 6px; flex-wrap: wrap; }
+  .bar .prints button { background: #e8eef6; font-weight: normal; }
+  .bar .sp { flex: 1; }
+  @media (max-width: 700px) { .bar { position: static; padding: 8px 10px; gap: 6px; } .wrap { padding: 8px 8px 20px; } }
+  .msg { font-size: 13px; opacity: .9; }
+  .hint { margin: 8px 16px 0; font-size: 13px; color: #445; display: none; }
+  body.edit-duty .hint.duty, body.edit-group .hint.grp { display: block; }
+  .tabs { display: flex; gap: 4px; padding: 10px 16px 0; overflow-x: auto; }
+  .tabs button { font: inherit; font-size: 14px; padding: 7px 12px; border: 1px solid #b8c4d2; border-bottom: none;
+                 border-radius: 8px 8px 0 0; background: #dde4ec; cursor: pointer; white-space: nowrap; color: #111; }
+  .tabs button.on { background: #fff; font-weight: bold; }
+  section.page { display: none; }
+  section.page.on { display: block; }
+  .wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 12px 16px 24px; }
+  table.xl { border-collapse: collapse; table-layout: fixed; background: #fff; color: #000; }
+  /* 엑셀처럼: 줄바꿈 없는 칸은 옆 빈칸으로 글자가 넘치고, 줄바꿈 칸은 칸 안에서 줄을 바꾼다 */
+  table.xl td { padding: 0 2px; overflow: visible; white-space: pre; line-height: 1.15; font-size: 11pt; }
+  table.xl td.wr { white-space: pre-line; overflow: hidden; }
+  table.xl td.mg { overflow: hidden; }
+  table.xl td.bd { border: 1px solid #000; }
+  table.xl td.edited { color: #c00000; font-weight: bold; }
+  body.edit-duty table.xl td.duty, body.edit-group table.xl td.grp { cursor: text; outline: 1px dashed #7aa7d8; outline-offset: -3px; }
+  body.edit-duty table.xl td.duty:focus, body.edit-group table.xl td.grp:focus { outline: 2px solid #1f6fd1; background: #fff !important; }
+  .foot { padding: 0 16px 24px; font-size: 13px; color: #556; }
+  .foot button { font: inherit; font-size: 13px; padding: 4px 10px; margin-top: 6px; }
+  .start { max-width: 560px; margin: 32px auto; background: #fff; padding: 20px; border-radius: 10px; }
+  .start h1 { font-size: 20px; margin-top: 0; }
+  .start .pick { display: inline-block; margin-top: 12px; padding: 10px 18px; background: #1f4e79; color: #fff;
+                 border-radius: 8px; font-weight: bold; cursor: pointer; }
+  .start p { line-height: 1.6; }
+  .err { color: #c00000; }
+  #file { display: none; }
+
+  /* 인쇄: 고른 시트 하나만 */
+  @media print {
+    .bar, .tabs, .hint, .foot, .start { display: none !important; }
+    body { background: #fff; }
+    section.page { display: none !important; }
+    section.page.print-target { display: block !important; }
+    .wrap { padding: 0 !important; overflow: visible !important; }
+    table.xl td.edited { color: inherit; font-weight: normal; }
+    td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+<style id="pagestyle">@page { size: A4 portrait; margin: 6mm; }</style>
+</head>
+<body>
+<input type="file" id="file" accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel.sheet.macroEnabled.12">
+
+<div id="start" class="start" hidden>
+  <h1>순찰 근무표</h1>
+  <p>처음 한 번 <b>순찰근무표_자동화.xlsx</b> 파일을 골라 주세요.<br>
+     파일은 이 기기 안(브라우저 저장소)에만 보관되고 인터넷으로 보내지지 않습니다.
+     그다음부터는 인터넷 없이도 바로 열립니다.</p>
+  <label class="pick" for="file">엑셀 파일 고르기</label>
+  <p id="startMsg" class="err"></p>
+</div>
+
+<div id="app" hidden>
+  <div class="bar">
+    <select id="y"></select><span>년</span>
+    <select id="m"></select><span>월</span>
+    <button id="btnMine" title="근무표 오른쪽 근무조(이름) 칸을 누르면 그 조 근무만 강조합니다">내 근무</button>
+    <button id="btnEdit">수정</button>
+    <button id="btnGroup">근무조 수정</button>
+    <button id="btnUndo" title="마지막 수정을 한 단계씩 되돌립니다">이전</button>
+    <button id="btnReset" title="이 달 근무를 원래 20일 주기 근무로 되돌립니다">초기화</button>
+    <button id="btnSave" class="primary">저장</button>
+    <span class="prints" id="prints"></span>
+    <span class="sp"></span>
+    <span class="msg" id="msg"></span>
+  </div>
+  <div class="mine-hint">내 근무: 근무표 오른쪽 <b>근무 조</b>(1조~8조·이름) 칸이나 근무 칸의 번호를 누르면 그 조 근무만 진하게 보입니다. 같은 조 칸을 다시 누르거나 [내 근무]를 누르면 꺼집니다.</div>
+  <div class="hint duty">수정 모드: 근무 칸을 눌러 입력하세요 (예: 7/5, G/E, 건7/5, 병G/E, 공7/5, 1/7C). 칸을 비우면 원래 패턴으로 돌아갑니다. 바뀐 칸은 빨간 글씨로 표시되고 이 기기에 바로 보관됩니다.</div>
+  <div class="hint grp">근무조 수정: 오른쪽 '근무 조' 아래 칸(조·호실, 이름, 1공구·2공구 전화)을 눌러 고치세요. 이름은 '1.홍길동'처럼 번호(또는 글자)와 점을 앞에 두세요. 바꾼 내용은 모든 달과 시간외 시트에 반영되고, 칸을 비우면 원래 값으로 돌아갑니다.</div>
+  <div class="tabs" id="tabs"></div>
+  <div id="pages"></div>
+  <div class="foot">
+    <div id="tplInfo"></div>
+    저장하면 원본에서 바뀐 칸만 고친 새 엑셀 파일(근무표_YYYY년MM월)을 내려받습니다. 시간외근무1·2·통계는 근무표를 바탕으로 이 앱이 계산합니다.<br>
+    <button id="btnReload">다른 원본 파일 불러오기</button>
+  </div>
+</div>
+
+<script src="js/jszip.min.js"></script>
+<script src="js/calc.js"></script>
+<script src="js/xlsx.js"></script>
+<script src="js/store.js"></script>
+<script src="js/mine.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,93 @@
+# 웹 앱(이 저장소 맨 위 파일들)을 안드로이드 APK로 빌드해 Releases에 올리고, 에뮬레이터에서 설치·실행해 본다.
+name: APK
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+permissions:
+  contents: write
+concurrency:
+  group: apk
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: 웹 파일 복사, Capacitor 안드로이드 프로젝트 만들기
+        working-directory: apk
+        run: |
+          npm install --no-audit --no-fund
+          mkdir -p www
+          cp -r ../index.html ../sw.js ../manifest.webmanifest ../js ../icons www/
+          npx cap add android
+          npx cap sync android
+          for d in android/app/src/main/res/mipmap-*dpi; do
+            cp ../icons/icon-192.png "$d/ic_launcher.png"
+            cp ../icons/icon-192.png "$d/ic_launcher_round.png"
+          done
+          rm -rf android/app/src/main/res/mipmap-anydpi-v26
+      - name: 서명 키 (같은 키로 서명해야 업데이트 설치가 됨)
+        env:
+          KS: ${{ secrets.DEBUG_KEYSTORE_B64 }}
+        run: |
+          mkdir -p ~/.android
+          if [ -n "$KS" ]; then echo "$KS" | base64 -d > ~/.android/debug.keystore; fi
+      - name: APK 빌드
+        working-directory: apk/android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/gunmu.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: gunmu.apk
+      - name: Releases에 올리기 (주소 고정)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete apk --yes --cleanup-tag || true
+          gh release create apk gunmu.apk --title "근무표 안드로이드 앱" --latest \
+            --notes "휴대폰에서 gunmu.apk를 내려받아 설치합니다. 설치할 때 '출처를 알 수 없는 앱' 설치를 허용해야 합니다. 앱 안에는 개인정보가 없고, 처음 실행 때 순찰근무표_자동화.xlsx를 골라야 합니다. (빌드 ${{ github.run_number }}, ${{ github.sha }})"
+
+  emulator:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk
+      - name: KVM 켜기
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: 에뮬레이터에서 설치·실행
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86_64
+          script: |
+            adb install -r gunmu.apk
+            adb shell am start -W -n io.github.nssij1014dotcom.gunmu/.MainActivity
+            sleep 25
+            adb exec-out screencap -p > shot.png
+            adb shell dumpsys activity activities | grep -i "gunmu" | head -5 > activity.txt || true
+            adb logcat -d > logcat.txt || true
+            grep -E "Capacitor|chromium|AndroidRuntime" logcat.txt | tail -200 > log.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: emulator
+          path: |
+            shot.png
+            activity.txt
+            log.txt

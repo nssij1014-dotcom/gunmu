@@ -1,0 +1,16 @@
+{
+  "name": "순찰 근무표",
+  "short_name": "근무표",
+  "description": "안전순찰팀 근무표·시간외근무 계산 (인터넷 없이 동작)",
+  "lang": "ko",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eef1f5",
+  "theme_color": "#1f4e79",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
