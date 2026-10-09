@@ -7,6 +7,7 @@
   const Calc = root.Calc || (typeof require !== 'undefined' ? require('./calc.js') : null);
 
   const SHEET = '근무표', OT_SHEETS = ['시간외근무1', '시간외근무2'], STAT_SHEET = '시간외근무_통계';
+  const LABOR_DAY = '근로자의 날';   // 매년 5월 1일 (원본 공휴일 표에 없으면 앱이 더함)
   const MAX_COL = 21, OT_ROWS = 28, OT_COLS = 35, STAT_ROWS = 24, STAT_COLS = 14;
 
   // ---------------------------------------------------------------- XML 도우미
@@ -214,11 +215,20 @@
     }
     const hws = await sheet('공휴일'), holidays = {};
     const maxR = Math.max(0, ...Object.keys(hws.cells).map(a => splitRef(a)[1]));
+    const freeRows = [];   // 날짜가 비어 있는 줄 (저장할 때 근로자의 날을 써 넣을 자리)
     for (let r = 2; r <= maxR; r++) {
       const d = cellVal(hws, 'A' + r), name = cellVal(hws, 'B' + r);
       if (typeof d === 'number' && hws.cells['A' + r] && isDateStyle(book, hws.cells['A' + r].s)) {
         holidays[Calc.iso(serialToDn(d, book.date1904))] = str(name);
-      }
+      } else if (d === null || d === '') freeRows.push(r);
+    }
+    // 매년 5월 1일 근로자의 날은 공휴일 (원본 공휴일 표에 없는 해만 더함, 요일·토일 겹침과 상관없음)
+    const labor_rows = [];
+    for (let yy = 2020; yy <= 2050; yy++) {
+      const k = `${yy}-05-01`;
+      if (k in holidays) continue;
+      holidays[k] = LABOR_DAY;
+      if (freeRows.length) labor_rows.push([freeRows.shift(), Calc.dn(yy, 5, 1) + 25569 - (book.date1904 ? 1462 : 0)]);
     }
     const grid = readGrid(ws, book, L.max_row, MAX_COL);
     const tplY = cellVal(ws, 'E1'), tplM = cellVal(ws, 'H1');
@@ -232,7 +242,7 @@
     const grids = {};
     for (const n of OT_SHEETS) grids[n] = readGrid(await sheet(n), book, OT_ROWS, OT_COLS);
     return {
-      layout: L, base, pattern, holidays, cells: grid.cells, widths: grid.widths, heights: grid.heights, landscape: grid.landscape,
+      layout: L, base, pattern, holidays, labor_rows, cells: grid.cells, widths: grid.widths, heights: grid.heights, landscape: grid.landscape,
       ot: { grids, stat_grid: readGrid(await sheet(STAT_SHEET), book, STAT_ROWS, STAT_COLS) },
       group_orig, tpl_ym: [Math.trunc(Number(tplY) || 0), Math.trunc(Number(tplM) || 0)], literals,
     };
@@ -393,6 +403,10 @@
   async function saveWorkbook(buf, info, y, m, edits, groupEdits, outType, otEdits) {
     const fixes = {}; OT_SHEETS.forEach(n => { fixes[n] = patchFormulaXml; });
     const cells = { [SHEET]: buildCellValues(info, y, m, edits, groupEdits) };
+    if ((info.labor_rows || []).length) {   // 원본 공휴일 표에 없던 근로자의 날을 빈 줄에 써 넣어 엑셀 수식(공휴일목록)도 같게
+      cells['공휴일'] = {};
+      for (const [r, serial] of info.labor_rows) { cells['공휴일']['A' + r] = serial; cells['공휴일']['B' + r] = LABOR_DAY; }
+    }
     const C = Calc;
     for (const [key, v] of Object.entries(otEdits || {})) {   // 시간외 칸 직접 수정은 수식 대신 값으로
       const [i, , day] = key.split(':').map(Number);
