@@ -3,18 +3,21 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const HISTORY_MAX = 100;
-  const S = { buf: null, name: '', info: null, y: 0, m: 0, tab: 0, mode: null, edits: {}, stored: false, group: {}, sheets: null };
+  const S = { buf: null, name: '', info: null, y: 0, m: 0, tab: 0, mode: null, edits: {}, ot: {}, stored: false, group: {}, sheets: null };
 
   const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const say = t => { $('msg').textContent = t; };
   const ymKey = (y, m) => `edits:${y}-${String(m).padStart(2, '0')}`;
+  const otKey = (y, m) => `ot:${y}-${String(m).padStart(2, '0')}`;   // 시간외근무1·2 칸 직접 수정
 
   // ---------------------------------------------------------------- 저장소
   async function loadMonth(y, m) {
     const e = await Store.get(ymKey(y, m));
     S.stored = e !== undefined;
     S.edits = Calc.effectiveEdits(S.info, y, m, e);
+    S.ot = (await Store.get(otKey(y, m))) || {};
   }
+  const saveOt = (y, m, o) => Store.set(otKey(y, m), o);
   const saveEdits = (y, m, e) => Store.set(ymKey(y, m), e);
   async function pushHistory(entry) {
     const h = (await Store.get('history')) || [];
@@ -52,7 +55,7 @@
       h += `<tr style="height:${row.h}px">`;
       for (const c of row.cells) {
         const cls = [c.border ? 'bd' : '', c.wrap ? 'wr' : '', c.rs > 1 || c.cs > 1 ? 'mg' : '', c.addr ? 'duty' : '',
-          c.gaddr ? 'grp' : '', c.edited ? 'edited' : ''].filter(Boolean).join(' ');
+          c.gaddr ? 'grp' : '', c.oaddr ? 'ot' : '', c.edited ? 'edited' : ''].filter(Boolean).join(' ');
         const al = ['left', 'center', 'right'].includes(c.al) ? c.al : 'center';
         let st = `vertical-align:${c.va || 'bottom'};font-size:${c.sz}pt;text-align:${al};`;
         if (c.b) st += 'font-weight:bold;';
@@ -60,6 +63,7 @@
         if (c.fc) st += `color:${c.fc};`;
         h += `<td${c.rs > 1 ? ` rowspan="${c.rs}"` : ''}${c.cs > 1 ? ` colspan="${c.cs}"` : ''} class="${cls}"` +
           (c.addr ? ` data-addr="${esc(c.addr)}"` : '') + (c.gaddr ? ` data-gaddr="${esc(c.gaddr)}"` : '') + (c.g ? ` data-g="${c.g}"` : '') +
+          (c.oaddr ? ` data-oaddr="${c.oaddr}"` : '') + (c.osum ? ` data-osum="${c.osum}"` : '') +
           ` style="${st}">${esc(c.v)}</td>`;
       }
       h += '</tr>';
@@ -68,7 +72,7 @@
   }
 
   function render() {
-    const r = Calc.allSheets(S.info, S.y, S.m, S.edits, S.group);
+    const r = Calc.allSheets(S.info, S.y, S.m, S.edits, S.group, S.ot);
     S.sheets = r.sheets;
     $('tabs').innerHTML = r.sheets.map((s, i) => `<button data-i="${i}">${esc(s[0])}</button>`).join('');
     $('prints').innerHTML = r.sheets.map((s, i) => `<button data-print="${i}">${esc(s[0] === '시간외근무_통계' ? '통계' : s[0])} 출력</button>`).join('');
@@ -83,12 +87,15 @@
   }
 
   function showTab(i) {
-    if (i > 0 && S.dirty) { S.tab = i; render(); return; }   // 근무표를 고쳤으면 시간외를 다시 계산
+    if (i > 0 && S.dirty) { S.tab = i; render(); return; }   // 근무표·시간외를 고쳤으면 시간외·통계를 다시 계산
     S.tab = i;
     document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', +b.dataset.i === i));
     document.querySelectorAll('section.page').forEach(p => p.classList.toggle('on', +p.dataset.i === i));
-    ['btnEdit', 'btnGroup', 'btnReset', 'btnMine'].forEach(id => { $(id).style.display = i === 0 ? '' : 'none'; });
-    if (i > 0 && S.mode) setMode(null);
+    // [수정]·[초기화]는 근무표와 시간외근무1·2에서, 근무조 수정·내 근무는 근무표에서만
+    ['btnEdit', 'btnReset'].forEach(id => { $(id).style.display = i < 3 ? '' : 'none'; });
+    ['btnGroup', 'btnMine'].forEach(id => { $(id).style.display = i === 0 ? '' : 'none'; });
+    document.body.classList.toggle('on-ot', i === 1 || i === 2);
+    if ((i > 0 && S.mode === 'group') || (i >= 3 && S.mode)) setMode(null);
     Store.set('view', { y: S.y, m: S.m, tab: i });
   }
 
@@ -101,10 +108,10 @@
     $('btnGroup').classList.toggle('on', m === 'group');
     $('btnEdit').textContent = m === 'duty' ? '수정 끝' : '수정';
     $('btnGroup').textContent = m === 'group' ? '근무조 수정 끝' : '근무조 수정';
-    document.querySelectorAll('td.duty').forEach(td => { td.contentEditable = m === 'duty' ? 'true' : 'false'; });
+    document.querySelectorAll('td.duty, td.ot').forEach(td => { td.contentEditable = m === 'duty' ? 'true' : 'false'; });
     document.querySelectorAll('td.grp').forEach(td => { td.contentEditable = m === 'group' ? 'true' : 'false'; });
   }
-  const editable = el => !!(el && el.classList && ((S.mode === 'duty' && el.classList.contains('duty')) ||
+  const editable = el => !!(el && el.classList && ((S.mode === 'duty' && (el.classList.contains('duty') || el.classList.contains('ot'))) ||
                                                    (S.mode === 'group' && el.classList.contains('grp'))));
 
   async function commit(td) {
@@ -120,6 +127,17 @@
         td.textContent = r.value; td.dataset.before = String(r.value).trim();
         td.classList.toggle('edited', r.edited);
         say('근무조 칸 보관됨');
+      } else if (td.classList.contains('ot')) {   // 시간외근무1·2 칸 직접 수정 → 그 사람 계(합계)도 바꿈
+        const r = Calc.applyOtEdit(S.info, S.y, S.m, S.edits, S.group, S.ot, td.dataset.oaddr, value);
+        if (JSON.stringify(r.ot) !== JSON.stringify(S.ot)) {
+          await pushHistory({ type: 'ot', y: S.y, m: S.m, before: S.ot });
+          S.ot = r.ot; await saveOt(S.y, S.m, S.ot);
+        }
+        td.textContent = r.value; td.dataset.before = String(r.value).trim();
+        td.classList.toggle('edited', r.edited);
+        td.style.background = r.fill || '';
+        for (const [a, t] of Object.entries(r.sums)) document.querySelectorAll(`td[data-osum="${a}"]`).forEach(x => { x.textContent = t; });
+        say(td.dataset.oaddr.split(':')[2] + '일 시간외 칸 보관됨');
       } else {
         const r = Calc.applyDutyEdit(S.info, S.y, S.m, S.edits, td.dataset.addr, value);
         if (JSON.stringify(r.edits) !== JSON.stringify(S.edits)) {
@@ -153,18 +171,24 @@
       S.group = e.before; await Store.set('group', S.group);
       await goMonth(S.y, S.m);
       say(`근무조 수정을 되돌렸습니다 (남은 단계 ${h.length})`);
-    } else {
-      await saveEdits(e.y, e.m, e.before);
+    } else if (e.type === 'ot') {
+      await saveOt(e.y, e.m, e.before);
       await goMonth(e.y, e.m);
-      say(`${e.y}년 ${e.m}월 근무 수정을 되돌렸습니다 (남은 단계 ${h.length})`);
+      say(`${e.y}년 ${e.m}월 시간외 수정을 되돌렸습니다 (남은 단계 ${h.length})`);
+    } else {   // 'duty', 'month'(초기화: 근무 칸과 시간외 직접 수정 함께)
+      await saveEdits(e.y, e.m, e.before);
+      if (e.type === 'month') await saveOt(e.y, e.m, e.ot || {});
+      await goMonth(e.y, e.m);
+      say(`${e.y}년 ${e.m}월 ${e.type === 'month' ? '초기화를' : '근무 수정을'} 되돌렸습니다 (남은 단계 ${h.length})`);
     }
   }
 
   async function reset() {
-    if (!confirm(`${S.m}월 근무를 원래대로 되돌릴까요?\n(이 달에 고친 근무 칸이 모두 원래 근무로 돌아갑니다. [이전]으로 다시 살릴 수 있습니다.)`)) return;
-    const n = Object.keys(S.edits).length;
-    if (n) await pushHistory({ type: 'duty', y: S.y, m: S.m, before: S.edits });
+    if (!confirm(`${S.m}월 근무를 원래대로 되돌릴까요?\n(이 달에 고친 근무 칸과 시간외 칸이 모두 원래 근무·계산값으로 돌아갑니다. [이전]으로 다시 살릴 수 있습니다.)`)) return;
+    const n = Object.keys(S.edits).length + Object.keys(S.ot).length;
+    if (n) await pushHistory({ type: 'month', y: S.y, m: S.m, before: S.edits, ot: S.ot });
     await saveEdits(S.y, S.m, {});
+    await saveOt(S.y, S.m, {});
     await goMonth(S.y, S.m);
     say(`${S.m}월 근무를 원래대로 되돌렸습니다` + (n ? ` (${n}칸)` : ''));
   }
@@ -191,7 +215,7 @@
     say('엑셀 파일 만드는 중…');
     try {
       const xlsm = /\.xlsm$/i.test(S.name);
-      const blob = await Xlsx.saveWorkbook(S.buf, S.info, S.y, S.m, S.edits, S.group, 'blob');
+      const blob = await Xlsx.saveWorkbook(S.buf, S.info, S.y, S.m, S.edits, S.group, 'blob', S.ot);
       const name = `근무표_${S.y}년${String(S.m).padStart(2, '0')}월.${xlsm ? 'xlsm' : 'xlsx'}`;
       const type = xlsm ? 'application/vnd.ms-excel.sheet.macroEnabled.12' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
       const file = new Blob([blob], { type });

@@ -28,6 +28,7 @@
   .msg { font-size: 13px; opacity: .9; }
   .hint { margin: 8px 16px 0; font-size: 13px; color: #445; display: none; }
   body.edit-duty .hint.duty, body.edit-group .hint.grp { display: block; }
+  .hint .ot-only { display: none; } body.on-ot .hint .ot-only { display: inline; }
   .tabs { display: flex; gap: 4px; padding: 10px 16px 0; overflow-x: auto; }
   .tabs button { font: inherit; font-size: 14px; padding: 7px 12px; border: 1px solid #b8c4d2; border-bottom: none;
                  border-radius: 8px 8px 0 0; background: #dde4ec; cursor: pointer; white-space: nowrap; color: #111; }
@@ -47,8 +48,8 @@
   table.xl td.mg { overflow: hidden; }
   table.xl td.bd { border: 1px solid #000; }
   table.xl td.edited { color: #c00000; font-weight: bold; }
-  body.edit-duty table.xl td.duty, body.edit-group table.xl td.grp { cursor: text; outline: 1px dashed #7aa7d8; outline-offset: -3px; }
-  body.edit-duty table.xl td.duty:focus, body.edit-group table.xl td.grp:focus { outline: 2px solid #1f6fd1; background: #fff !important; }
+  body.edit-duty table.xl td.duty, body.edit-duty table.xl td.ot, body.edit-group table.xl td.grp { cursor: text; outline: 1px dashed #7aa7d8; outline-offset: -3px; }
+  body.edit-duty table.xl td.duty:focus, body.edit-duty table.xl td.ot:focus, body.edit-group table.xl td.grp:focus { outline: 2px solid #1f6fd1; background: #fff !important; }
   .foot { padding: 0 16px 24px; font-size: 13px; color: #556; }
   .foot button { font: inherit; font-size: 13px; padding: 4px 10px; margin-top: 6px; }
   .start { max-width: 560px; margin: 32px auto; background: #fff; padding: 20px; border-radius: 10px; }
@@ -110,7 +111,8 @@
     <span class="msg" id="msg"></span>
   </div>
   <div class="mine-hint">내 근무: 근무표 오른쪽 <b>근무 조</b>(1조~8조·이름) 칸이나 근무 칸의 번호를 누르면 그 조 근무만 진하게 보입니다. 같은 조 칸을 다시 누르거나 [내 근무]를 누르면 꺼집니다.</div>
-  <div class="hint duty">수정 모드: 근무 칸을 눌러 입력하세요 (예: 7/5, G/E, 건7/5, 병G/E, 공7/5, 1/7C). 칸을 비우면 원래 패턴으로 돌아갑니다. 바뀐 칸은 빨간 글씨로 표시되고 이 기기에 바로 보관됩니다.</div>
+  <div class="hint duty">수정 모드: 근무 칸을 눌러 입력하세요 (예: 7/5, G/E, 건7/5, 병G/E, 공7/5, 1/7C). 칸을 비우면 원래 패턴으로 돌아갑니다. 바뀐 칸은 빨간 글씨로 표시되고 이 기기에 바로 보관됩니다.
+    <span class="ot-only">시간외근무1·2에서는 연장·야간·휴일 칸을 직접 고칩니다(예: 8, 7.5, 초번). 고친 값이 계산값 대신 쓰이고 계·통계도 다시 계산됩니다. 칸을 비우면 계산값으로 돌아가고, 빈칸으로 두려면 - 를 입력하세요.</span></div>
   <div class="hint grp">근무조 수정: 오른쪽 '근무 조' 아래 칸(조·호실, 이름, 1공구·2공구 전화)을 눌러 고치세요. 이름은 '1.홍길동'처럼 번호(또는 글자)와 점을 앞에 두세요. 바꾼 내용은 모든 달과 시간외 시트에 반영되고, 칸을 비우면 원래 값으로 돌아갑니다.</div>
   <div class="tabs" id="tabs"></div>
   <div id="view">

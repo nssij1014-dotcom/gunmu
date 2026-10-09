@@ -226,7 +226,20 @@
     return '';
   }
 
-  function compute(info, y, m, dayCells, names) {
+  /** 시간외 칸 직접 수정의 열쇠: 사람 순서 i(0~15), 줄 k(0 연장·1 야간·2 휴일), 일 (파이썬 ot_addr) */
+  const otAddr = (i, k, day) => `${i}:${k}:${day}`;
+  /** 그 칸의 [시트 이름, 엑셀 주소] */
+  const otCell = (i, k, day) => [OT_SHEETS[Math.floor(i / 8)], `${colLetter(DAY_COL0 + day - 1)}${5 + 3 * (i % 8) + k}`];
+  /** 직접 입력한 글자 → 칸 값: 숫자면 숫자, '-'면 빈칸, 나머지는 글자 */
+  function otValue(text) {
+    const t = pyStrip(String(text));
+    if (t === '-') return '';
+    if (t !== '' && /^[+-]?(\d+\.?\d*|\.\d+)$/.test(t)) return Number(t);
+    return t;
+  }
+
+  function compute(info, y, m, dayCells, names, otEdits) {
+    otEdits = otEdits || {};
     const nd = daysIn(y, m);
     const pre = `${y}-${String(m).padStart(2, '0')}-`;
     const holDays = new Set(Object.keys(info.holidays).filter(k => k.startsWith(pre)).map(k => parseInt(k.slice(8), 10)));
@@ -254,12 +267,19 @@
         hol.push(isHol && ((bq === '' && ['초번', '중번', '말번'].includes(bp)) || (bp === '휴무' && br !== '')) ? 8 : '');
         green.push(six);
       }
+      const edited = new Set();   // 직접 고친 칸 'k:dd' — 계산값 대신 그 값, 합계·통계도 그 값으로
+      [ext, night, hol].forEach((vals, k) => {
+        for (let dd = 0; dd < nd; dd++) {
+          const a = otAddr(i, k, dd + 1);
+          if (a in otEdits) { vals[dd] = otValue(otEdits[a]); edited.add(`${k}:${dd}`); }
+        }
+      });
       const tot = vals => vals.reduce((s, v) => (isNum(v) ? s + v : s), 0);
       const raw = names[i];
       let no, name;
       if (raw.includes('.')) { const p = raw.indexOf('.'); no = raw.slice(0, p); name = xtrim(raw.slice(p + 1)); }
       else { no = key; name = raw; }
-      people.push({ no, name, ext, night, hol, green, sum: [tot(ext), tot(night), tot(hol)] });
+      people.push({ no, name, ext, night, hol, green, edited, sum: [tot(ext), tot(night), tot(hol)] });
     }
     const holList = Object.keys(info.holidays).filter(k => k.startsWith(pre)).sort().slice(0, 8).map(k => [k, info.holidays[k]]);
     for (const p of people) {
@@ -289,6 +309,7 @@
         if (o) {
           if ('v' in o) cell.v = fmt(o.v, base.nf);
           if (o.fill) cell.fill = o.fill;
+          for (const k of ['oaddr', 'osum', 'edited']) if (k in o) cell[k] = o[k];   // 시간외 칸 직접 수정용
         }
         row.push(cell);
       });
@@ -298,6 +319,13 @@
   }
 
   const widthsPx = grid => grid.widths.map(w => pyRound(w * 7 + 5));
+
+  /** 연장 칸: 주6일 일요일이면 민트(값이 있을 때), 휴일 칸: 8이면 노랑 */
+  function otFill(p, k, dd) {
+    if (k === 0) return p.green[dd] && p.ext[dd] !== '' && p.ext[dd] !== 0 ? GREEN : null;
+    if (k === 2) return p.hol[dd] === 8 ? YELLOW : null;
+    return null;
+  }
 
   function buildOtSheets(info, y, m, result) {
     const nd = result.ndays, sheets = [];
@@ -315,12 +343,14 @@
         const p = result.people[s * 8 + i], r0 = 5 + 3 * i;
         ov[`${r0},1`] = { v: p.no };
         ov[`${r0},2`] = { v: p.name };
-        for (let k = 0; k < 3; k++) ov[`${r0 + k},4`] = { v: p.sum[k] };
+        const pi = s * 8 + i;
+        for (let k = 0; k < 3; k++) ov[`${r0 + k},4`] = { v: p.sum[k], osum: `${pi}:${k}` };
         for (let dd = 0; dd < 31; dd++) {
           const c = DAY_COL0 + dd;
-          ov[`${r0},${c}`] = { v: p.ext[dd], fill: p.green[dd] ? GREEN : null };
+          ov[`${r0},${c}`] = { v: p.ext[dd], fill: otFill(p, 0, dd) };
           ov[`${r0 + 1},${c}`] = { v: p.night[dd] };
-          ov[`${r0 + 2},${c}`] = { v: p.hol[dd], fill: p.hol[dd] === 8 ? YELLOW : null };
+          ov[`${r0 + 2},${c}`] = { v: p.hol[dd], fill: otFill(p, 2, dd) };
+          if (dd < nd) for (let k = 0; k < 3; k++) Object.assign(ov[`${r0 + k},${c}`], { oaddr: otAddr(pi, k, dd + 1), edited: p.edited.has(`${k}:${dd}`) });
         }
       }
       const grid = info.ot.grids[sheetName];
@@ -340,11 +370,15 @@
   }
 
   /** 화면에 그릴 시트 4개: [이름, 열너비px, 행목록, 가로인쇄] */
-  function allSheets(info, y, m, edits, groupEdits) {
+  function otResult(info, y, m, edits, groupEdits, otEdits) {
     const sheet = buildSheet(y, m, info, edits);
-    const widths = info.widths.map(w => pyRound(w * 7 + 5));
     const dayCells = sheet.days.filter(Boolean).map(d => d.duties.map(x => x.v));
-    const result = compute(info, y, m, dayCells, personNames(info, groupEdits));
+    return { sheet, result: compute(info, y, m, dayCells, personNames(info, groupEdits), otEdits) };
+  }
+
+  function allSheets(info, y, m, edits, groupEdits, otEdits) {
+    const { sheet, result } = otResult(info, y, m, edits, groupEdits, otEdits);
+    const widths = info.widths.map(w => pyRound(w * 7 + 5));
     return { sheet, sheets: [['근무표', widths, buildGrid(info, sheet, groupEdits), info.landscape]].concat(buildOtSheets(info, y, m, result)) };
   }
 
@@ -360,6 +394,24 @@
     return { edits: out, value, edited: key in out, fill: dutyFill(info, n, c, value) };
   }
 
+  /** 시간외근무1·2 칸 하나 직접 수정 (파이썬 /api/ot): 비우거나 계산값과 같으면 계산값으로, '-'는 빈칸.
+   *  → { ot: 새 직접 수정, value: 표시 글자, edited, fill, sums: {'사람:줄': 계 글자} } */
+  function applyOtEdit(info, y, m, edits, groupEdits, otEdits, addr, value) {
+    const [i, k, day] = addr.split(':').map(Number);
+    const out = Object.assign({}, otEdits);
+    delete out[addr];
+    value = pyStrip(String(value));
+    const calc = otResult(info, y, m, edits, groupEdits, out).result.people[i];
+    if (value !== '' && fmt(otValue(value)) !== fmt([calc.ext, calc.night, calc.hol][k][day - 1])) out[addr] = value;
+    const p = otResult(info, y, m, edits, groupEdits, out).result.people[i];
+    const grid = info.ot.grids[OT_SHEETS[Math.floor(i / 8)]], r0 = 5 + 3 * (i % 8);
+    const nf = (r, c) => (grid.cells[r - 1][c - 1] || {}).nf;
+    const sums = {};
+    for (let j = 0; j < 3; j++) sums[`${i}:${j}`] = fmt(p.sum[j], nf(r0 + j, 4));
+    return { ot: out, value: fmt([p.ext, p.night, p.hol][k][day - 1], nf(r0 + k, DAY_COL0 + day - 1)), edited: addr in out,
+      fill: otFill(p, k, day - 1), sums };
+  }
+
   /** 근무조 칸 하나 수정 (비우면 원래 값) */
   function applyGroupEdit(info, groupEdits, addr, value) {
     const out = Object.assign({}, groupEdits), orig = info.group_orig[addr];
@@ -369,6 +421,7 @@
   }
 
   const api = { PINK, YELLOW, GREEN, DUTY_COLS, OT_SHEETS, STAT_SHEET, dn, iso, weekday, daysIn, colLetter, pyRound,
-    dutyKey, effectiveEdits, buildSheet, buildGrid, compute, allSheets, applyDutyEdit, applyGroupEdit, personNames, groupValues };
+    dutyKey, effectiveEdits, buildSheet, buildGrid, compute, allSheets, applyDutyEdit, applyGroupEdit, applyOtEdit, otCell, otValue,
+    personNames, groupValues };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Calc = api;
 })(this);

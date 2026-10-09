@@ -390,9 +390,17 @@
     return values;
   }
 
-  async function saveWorkbook(buf, info, y, m, edits, groupEdits, outType) {
+  async function saveWorkbook(buf, info, y, m, edits, groupEdits, outType, otEdits) {
     const fixes = {}; OT_SHEETS.forEach(n => { fixes[n] = patchFormulaXml; });
-    return savePatched(buf, { [SHEET]: buildCellValues(info, y, m, edits, groupEdits) }, fixes, outType);
+    const cells = { [SHEET]: buildCellValues(info, y, m, edits, groupEdits) };
+    const C = Calc;
+    for (const [key, v] of Object.entries(otEdits || {})) {   // 시간외 칸 직접 수정은 수식 대신 값으로
+      const [i, , day] = key.split(':').map(Number);
+      if (i >= 16 || day > C.daysIn(y, m)) continue;
+      const [sname, addr] = C.otCell(...key.split(':').map(Number));
+      (cells[sname] = cells[sname] || {})[addr] = C.otValue(v);
+    }
+    return savePatched(buf, cells, fixes, outType);
   }
 
   const api = { readTemplate, saveWorkbook, savePatched, translateFormula, expandShared, openBook };
