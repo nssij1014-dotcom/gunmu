@@ -181,11 +181,8 @@
 
   /** 주6일 근무 주(일요일 n)의 여섯째 근무일: 일요일이 휴무면 토요일 */
   const sixthDay = (info, n, g) => n - (groupShift(info, n, g) === '휴무' ? 1 : 0);
-  /** n이 g조 주6일 근무 주(월~일)의 여섯째 근무일인가. 이날이 공휴일이면 휴일 8은 비우고 일요일 연장(8/5.5, 민트)에만 (파이썬 is_sixth_day) */
-  function isSixthDay(info, n, g) {
-    const sun = n + 6 - weekday(n);
-    return weekCount(info, sun, g) === 6 && sixthDay(info, sun, g) === n;
-  }
+  /** n이 일요일이고 g조 그 주 근무일 수가 6 — 6일 연장이 들어가는 날. 공휴일이면 휴일 8은 비우고 연장에만 (파이썬 is_six_sunday, 엑셀 휴일 수식) */
+  const isSixSunday = (info, n, g) => weekday(n) === 6 && weekCount(info, n, g) === 6;
 
   function personDay(cells, key, letter) {
     const nums = [], lets = [];
@@ -272,7 +269,7 @@
         }
         ext.push(a + b === 0 ? '' : a + b);
         night.push(nightValue(bp, bq, br));
-        hol.push(isHol && ((bq === '' && ['초번', '중번', '말번'].includes(bp)) || (bp === '휴무' && br !== '')) && !isSixthDay(info, n, g) ? 8 : '');
+        hol.push(isHol && ((bq === '' && ['초번', '중번', '말번'].includes(bp)) || (bp === '휴무' && br !== '')) && !isSixSunday(info, n, g) ? 8 : '');
         green.push(six);
       }
       const edited = new Set();   // 직접 고친 칸 'k:dd' — 계산값 대신 그 값, 합계·통계도 그 값으로
