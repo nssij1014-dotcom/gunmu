@@ -481,9 +481,10 @@ async function fetchHolidays(manual) {
   if (!navigator.onLine) { msg('오프라인입니다. 저장된 목록을 씁니다.'); return; }
   try {
     msg('받는 중…');
-    const r = await fetch(ICS, { cache: 'no-store' });
-    if (!r.ok) throw new Error(r.status);
-    const got = GM.parseICS(await r.text());
+    let txt;
+    if (window.gmFetchHolidays) txt = await window.gmFetchHolidays();   // Windows 프로그램: 프로그램이 대신 받아 줌
+    else { const r = await fetch(ICS, { cache: 'no-store' }); if (!r.ok) throw new Error(r.status); txt = await r.text(); }
+    const got = GM.parseICS(txt);
     if (!Object.keys(got).length) throw new Error('empty');
     S.fetched = got; S.fetchedAt = Date.now(); save(); rebuildHol(); msg('받았습니다 (' + Object.keys(got).length + '일).');
     if (manual) render(); else if (S.pattern && !W) render();
