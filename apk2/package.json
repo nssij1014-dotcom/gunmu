@@ -1,0 +1,10 @@
+{
+  "name": "gunmu2-android",
+  "private": true,
+  "description": "근무표 2 웹 앱(v2 폴더)을 안드로이드 APK로 감싸기 (Capacitor)",
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/core": "^6.1.2"
+  }
+}
