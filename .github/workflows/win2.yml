@@ -1,0 +1,58 @@
+# 근무표 2를 Windows 설치 프로그램(gunmu2-setup.exe)으로 만든다. 기존 앱과 이름·앱 ID가 달라 같이 설치할 수 있다.
+# PR에서는 만들고 점검만 하고(결과는 Actions의 artifact), main에 올라가면 Releases(apk)에 gunmu2-setup.exe 를 추가·교체한다.
+name: Windows 2
+on:
+  push:
+    branches: [main]
+    paths: ['v2/**', 'win/**', '.github/workflows/win2.yml']
+  pull_request:
+    paths: ['v2/**', 'win/**', '.github/workflows/win2.yml']
+  workflow_dispatch: {}
+permissions:
+  contents: write
+concurrency:
+  group: win2-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: 계산 시험
+        run: node v2/test/engine.test.js
+      - name: 웹 파일 복사, 설치 파일 만들기
+        working-directory: win
+        run: |
+          mkdir -p app
+          cp ../v2/index.html ../v2/engine.js ../v2/holidays.js ../v2/manifest.webmanifest app/
+          cp -r ../v2/icons app/
+          npm install --no-audit --no-fund
+          npm run dist
+          ls -la dist
+      - name: 설치 없이 실행해 보기 (창이 뜨고 앱이 그려지는지)
+        working-directory: win
+        run: |
+          rm -f smoke.txt
+          GM_SMOKE=1 GM_SMOKE_OUT="$PWD/smoke.txt" ./dist/win-unpacked/gunmu2.exe &
+          PID=$!
+          for i in $(seq 1 60); do [ -f smoke.txt ] && break; sleep 1; done
+          cat smoke.txt
+          grep -q '^SMOKE {' smoke.txt
+          grep -q '"wizard":true' smoke.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gunmu2-setup
+          path: win/dist/gunmu2-setup.exe
+      - name: Releases에 올리기 (main에서만)
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view apk >/dev/null 2>&1 || gh release create apk --latest --title "근무표 앱 (안드로이드·Windows)" --notes "앱 파일"
+          gh release upload apk win/dist/gunmu2-setup.exe --clobber

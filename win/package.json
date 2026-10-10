@@ -1,0 +1,30 @@
+{
+  "name": "gunmu2-win",
+  "version": "1.0.0",
+  "private": true,
+  "description": "근무표 2 Windows 프로그램 (Electron)",
+  "author": "gunmu",
+  "main": "main.js",
+  "scripts": {
+    "dist": "electron-builder --win nsis --x64"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "io.github.nssij1014dotcom.gunmu2",
+    "productName": "근무표2",
+    "executableName": "gunmu2",
+    "directories": { "output": "dist" },
+    "files": ["main.js", "preload.js", "app/**/*"],
+    "win": { "target": "nsis", "icon": "app/icons/icon-512.png" },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "gunmu2-setup.exe",
+      "shortcutName": "근무표2",
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}

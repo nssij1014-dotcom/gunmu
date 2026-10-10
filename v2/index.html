@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1f6b4f">
+<title>순찰 근무표 2</title>
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="근무표2">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+:root{
+  --bg:#f3f5f2; --surface:#fff; --fg:#1b231f; --muted:#5d6a63; --line:#d8dfda; --accent:#1f6b4f; --accent-ink:#fff;
+  --we:#F99F9F; --hol:#F8F056; --six:#99FFCC; --warn:#b3261e;
+  --font:"Malgun Gothic","맑은 고딕","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);font-size:15px;line-height:1.45}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.bar{position:sticky;top:0;z-index:10;background:var(--surface);border-bottom:1px solid var(--line);padding:8px 12px;display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.bar h1{font-size:17px;margin:0 6px 0 0}
+.bar select{padding:5px 6px;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tab{border:1px solid var(--line);background:var(--surface);padding:6px 11px;border-radius:7px}
+.tab[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.sp{flex:1}
+.btn{border:1px solid var(--accent);background:var(--surface);color:var(--accent);padding:6px 12px;border-radius:7px}
+.btn.pri{background:var(--accent);color:var(--accent-ink)}
+.btn.danger{border-color:var(--warn);color:var(--warn)}
+main{padding:12px;max-width:1500px;margin:0 auto}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+.card h2{font-size:16px;margin:0 0 8px}
+.muted{color:var(--muted);font-size:13px}
+.warn{color:var(--warn)}
+.scroll{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px}
+.layout{display:flex;gap:14px;align-items:flex-start;min-width:max-content}
+.aside{width:230px;font-size:13px}
+.aside h3{font-size:13px;margin:8px 0 4px;background:#e3eee8;padding:2px 6px}
+.aside .g{border:1px solid #999;margin-bottom:-1px;padding:2px 6px}
+.aside .btnrow{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+
+/* ---- 표 공통 ---- */
+table.gm{border-collapse:collapse;font-size:12px;background:#fff;color:#000}
+table.gm td,table.gm th{border:1px solid #444;padding:1px 2px;text-align:center;font-weight:normal;vertical-align:middle;white-space:nowrap;overflow:hidden}
+table.gm .ttl{border:none;font-size:22px;font-weight:bold;padding:6px}
+table.gm .nb{border:none}
+.c-we{background:var(--we)} .c-hol{background:var(--hol)} .c-six{background:var(--six)}
+.lg{display:inline-block;padding:1px 10px;border:1px solid #444;font-size:12px;margin-right:4px}
+table.sheet td.cell{padding:0;width:34px;min-width:34px}
+table.sheet td.cell input{width:100%;border:0;background:transparent;text-align:center;padding:5px 0;font-size:12px;outline:none;color:#000}
+table.sheet td.cell input:focus{outline:2px solid var(--accent);outline-offset:-2px;background:#fff8}
+table.sheet td.cell.ov input{font-weight:bold;color:#0b3d91}
+table.sheet td.cell.ov{box-shadow:inset 0 0 0 1.5px #0b3d91}
+table.sheet .l{font-size:10px}
+table.stm td{min-width:30px;height:24px}
+table.stm td.lbl{min-width:34px}
+.sm{font-size:10px}
+.sheet-wrap{display:none}
+
+/* ---- 설정 ---- */
+.grid20{border-collapse:collapse;font-size:13px}
+.grid20 td,.grid20 th{border:1px solid var(--line);padding:2px;text-align:center}
+.grid20 input{width:34px;text-align:center;border:1px solid var(--line);border-radius:4px;padding:4px 0}
+.grid20 tr.bad td{background:#fde8e6}
+.cal{display:inline-block;border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff}
+.cal .h{display:flex;gap:6px;align-items:center;justify-content:space-between;margin-bottom:6px}
+.cal table{border-collapse:collapse}
+.cal td,.cal th{width:36px;height:34px;text-align:center;font-weight:normal;font-size:13px}
+.cal td button{width:100%;height:100%;border:0;background:none;border-radius:6px}
+.cal td button:hover{background:#e3eee8}
+.cal td button.sel{background:var(--accent);color:#fff}
+.cal th:first-child,.cal td:first-child button{color:#c0392b}
+.names input{width:120px;border:1px solid var(--line);border-radius:4px;padding:4px 6px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0}
+textarea{width:100%;border:1px solid var(--line);border-radius:6px;padding:6px}
+.expl h3{font-size:14px;margin:14px 0 4px}
+.expl table{border-collapse:collapse;font-size:13px;margin:4px 0}
+.expl td,.expl th{border:1px solid var(--line);padding:3px 8px;text-align:left}
+.expl ul{margin:4px 0 4px 18px;padding:0}
+
+/* ---- 인쇄 ---- */
+#printArea{display:none}
+@media print{
+  body{background:#fff}
+  body > *:not(#printArea){display:none !important}
+  #printArea{display:block}
+  .pp{break-after:page;break-inside:avoid;overflow:hidden}
+  .pp:last-child{break-after:auto}
+  .pp-port{width:197.3mm;height:258.8mm}
+  .pp-land{width:284.3mm;height:171.8mm}
+  .pp table.gm{width:100%;table-layout:fixed}
+  .pp table.gm td,.pp table.gm th{padding:0 1px}
+  /* 근무표 (세로) */
+  .pp-port .layout{display:flex;gap:2mm;align-items:flex-start;min-width:0}
+  .pp-port .layout > .main{width:150mm;flex:none}
+  .pp-port .layout > .aside{width:45mm;flex:none;font-size:7.5pt}
+  .pp-port table.sheet{font-size:7.5pt}
+  .pp-port table.sheet td.cell{width:auto;min-width:0;height:5.9mm}
+  .pp-port table.sheet td.cell input{padding:0;font-size:7pt;height:5.9mm}
+  .pp-port .ttl{font-size:16pt !important;padding:1mm !important}
+  .pp-port .btnrow{display:none}
+  .pp-port td.hd{height:5mm}
+  /* 명세서 (가로) */
+  .pp-land table.stm{font-size:8pt}
+  .pp-land table.stm td{height:5.4mm;min-width:0;line-height:1.1}
+  .pp-land .ttl{font-size:15pt !important;padding:1mm !important}
+  .pp-land table.stat{font-size:10pt}
+  .pp-land table.stat td{height:8mm}
+  .sm{font-size:6.5pt}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="printArea"></div>
+<style id="pagestyle"></style>
+<script src="holidays.js"></script>
+<script src="engine.js"></script>
+<script>
+(function () {
+'use strict';
+const KEY = 'gunmu2.v1';
+const WD = ['일', '월', '화', '수', '목', '금', '토'];
+const SAMPLE_PATTERN = [[5,6,3,2,1,4,8,7],[6,7,2,5,4,3,1,8],[7,6,5,8,3,4,2,1],[6,1,8,7,4,5,3,2],[1,6,7,8,5,2,4,3],[4,3,8,1,2,7,6,5],[5,4,3,8,1,2,7,6],[4,5,6,3,2,1,8,7],[7,4,5,6,3,2,1,8],[4,7,6,5,8,3,2,1],[1,2,7,6,5,8,4,3],[2,3,6,1,8,7,5,4],[3,2,1,4,7,8,6,5],[2,5,4,3,8,1,7,6],[5,2,3,4,1,6,8,7],[8,7,4,5,6,3,2,1],[1,8,7,4,5,6,3,2],[8,1,2,7,6,5,4,3],[3,8,1,2,7,6,5,4],[8,3,2,1,4,7,6,5]];
+const $ = (s, r) => (r || document).querySelector(s);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/* ---------- 저장 ---------- */
+const today = new Date();
+let S = load() || {};
+S = Object.assign({
+  pattern: null, base: null, names: {}, cars: ['111호', '112호', '113호', '114호', '115호', '116호', '117호', '118호'],
+  phones: ['', '', '', ''], fetched: {}, fetchedAt: 0, extra: {}, data: {},
+  ui: { y: today.getFullYear(), m: today.getMonth() + 1, tab: 'sheet' },
+}, S);
+function load() { try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; } }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* 저장 불가 환경: 화면은 그대로 동작 */ } }
+let holFn;
+function rebuildHol() { holFn = GM.buildHolidayFn(window.HOLIDAYS_BASE, S.fetched, S.extra); }
+rebuildHol();
+const cfg = () => ({ pattern: S.pattern, base: S.base, holidays: holFn, getOverrides: (y, m) => S.data[y + '-' + m] || {}, otherMonthVacation: true });
+
+/* ---------- 공통 조각 ---------- */
+function legend() {
+  return '<span class="lg c-we">토·일</span><span class="lg c-hol">공휴일</span><span class="lg c-six">6일근무</span>';
+}
+const NOTE = '[ # 참고 # ]   연 : 연차 / 공 : 공무외출 / 건 : 건강검진 / 병 : 병가';
+function dayCls(wdv, hol) { return hol ? 'c-hol' : (wdv === 0 || wdv === 6 ? 'c-we' : ''); }
+
+/* ---------- 근무표 ---------- */
+function sheetHtml(editable) {
+  const { y, m } = S.ui;
+  const rows = GM.monthGrid(cfg(), y, m);
+  const slots = [['말번', '1공구', '22:00-07:00', '01:30-02:00\n06:20-06:50'], ['', '2공구', '22:00-07:00', '02:00-02:30\n06:20-06:50'],
+    ['중번', '1공구', '14:00-23:00', '18:20-18:50\n22:20-22:50'], ['', '2공구', '14:00-23:00', '18:50-19:20\n22:20-22:50'],
+    ['초번', '1공구', '06:00-15:00', '11:20-11:50\n14:20-14:50'], ['', '2공구', '06:00-15:00', '11:50-12:20\n14:20-14:50']];
+  let h = '<div class="layout"><div class="main"><table class="gm sheet">';
+  h += '<colgroup><col style="width:8mm"><col style="width:8mm">' + '<col>'.repeat(16) + '</colgroup>';
+  h += `<tr><td colspan="18" class="ttl nb">안 전 순 찰 팀 &nbsp; 근 무 표 &nbsp;<span style="font-size:.7em">${y}년 ${m}월</span></td></tr>`;
+  h += `<tr><td colspan="18" class="nb" style="text-align:left;padding:3px 0">${legend()} <span class="sm">${NOTE.slice(10)}</span></td></tr>`;
+  h += '<tr><td rowspan="3" class="hd">일자</td><td rowspan="3" class="hd">요일</td><td colspan="4">말번</td><td colspan="4">중번</td><td colspan="4">초번</td><td colspan="4">휴 무</td></tr>';
+  h += '<tr>' + slots.map((s) => `<td colspan="2" class="sm">${s[1]} ${s[2]}</td>`).join('') + '<td colspan="4"></td></tr>';
+  h += '<tr>' + slots.map((s) => `<td colspan="2" class="sm" style="white-space:pre-line">${esc(s[3])}</td>`).join('') + '<td colspan="4"></td></tr>';
+  for (const r of rows) {
+    const dc = dayCls(r.wd, r.hol);
+    h += `<tr data-d="${r.d}"><td class="hd ${dc}">${r.d}</td><td class="hd ${dc}">${WD[r.wd]}</td>`;
+    r.cells.forEach((c, i) => {
+      let cls = 'cell';
+      if (r.hol && i < 12) cls += ' c-hol'; else if (c.mint) cls += ' c-six';
+      if (c.input) cls += ' ov';
+      h += editable
+        ? `<td class="${cls}" data-c="${i}"><input value="${esc(c.text)}" data-d="${r.d}" data-c="${i}" autocomplete="off" autocapitalize="characters" spellcheck="false"></td>`
+        : `<td class="${cls}" data-c="${i}"><input value="${esc(c.text)}" readonly></td>`;
+    });
+    h += '</tr>';
+  }
+  h += '</table></div><div class="aside"><h3>근무 조</h3>';
+  for (let g = 1; g <= 8; g++) {
+    const a = S.names[String(g)] || '', b = S.names[String.fromCharCode(64 + g)] || '';
+    h += `<div class="g"><b>${g}조</b> · ${esc(S.cars[g - 1] || '')}<br>${g}.${esc(a)}<br>${String.fromCharCode(64 + g)}.${esc(b)}</div>`;
+  }
+  if (S.phones.some(Boolean)) h += '<h3>공구 연락처</h3>' + S.phones.map((p, i) => p ? `<div class="g">${i < 2 ? '1' : '2'}공구 ${esc(p)}</div>` : '').join('');
+  const hs = GM.holidaysOfMonth(holFn, y, m);
+  h += '<h3>공휴일</h3>' + (hs.length ? hs.map((o) => `<div class="g">${o.d}일 ${esc(o.name)}</div>`).join('') : '<div class="g muted">없음</div>');
+  h += '<div class="btnrow"><button class="btn pri" data-act="print-sheet">근무표 출력</button><button class="btn pri" data-act="print-ot">시간외실적 출력</button></div>';
+  return h + '</div></div>';
+}
+
+/* ---------- 명세서 ---------- */
+function monthResult() {
+  const names = Object.assign({}, S.names);
+  return GM.computeMonth(cfg(), S.ui.y, S.ui.m, names);
+}
+function stmtHtml(res, part) {
+  const ps = res.persons.slice(part * 8, part * 8 + 8);
+  const last = res.days.length;
+  const cellStyle = (v) => (typeof v === 'string' && v.length > 2 ? ' class="sm"' : '');
+  let h = '<table class="gm stm"><colgroup><col style="width:8mm"><col style="width:15mm"><col style="width:10mm"><col style="width:11mm">' + '<col>'.repeat(31) + '</colgroup>';
+  h += `<tr><td colspan="35" class="ttl nb">[ ${res.m}월 안전순찰팀 ] 시간외 근무 명세서</td></tr>`;
+  h += `<tr><td colspan="35" class="nb" style="text-align:left;padding:2px 0">${legend()} <span class="sm" style="margin-left:20px">${NOTE}</span></td></tr>`;
+  h += '<tr><td>No</td><td>이름</td><td>구분</td><td>계</td>';
+  for (let d = 1; d <= 31; d++) { const dd = res.days[d - 1]; h += `<td class="${dd ? dayCls(dd.wd, dd.hol) : ''}">${dd ? d : ''}</td>`; }
+  h += '</tr><tr><td></td><td></td><td></td><td></td>';
+  for (let d = 1; d <= 31; d++) { const dd = res.days[d - 1]; h += `<td class="${dd ? dayCls(dd.wd, dd.hol) : ''}">${dd ? WD[dd.wd] : ''}</td>`; }
+  h += '</tr>';
+  for (const p of ps) {
+    const rows = [['연장', p.ext, p.tExt], ['야간', p.night, p.tNight], ['휴일', p.hol, p.tHol]];
+    rows.forEach((r, i) => {
+      h += '<tr>' + (i === 0 ? `<td rowspan="3">${p.id}</td><td rowspan="3">${esc(p.name)}</td>` : '') + `<td>${r[0]}</td><td>${GM.fmt(r[2])}</td>`;
+      for (let d = 1; d <= 31; d++) {
+        if (d > last) { h += '<td></td>'; continue; }
+        const v = r[1][d - 1];
+        let cls = '';
+        if (i === 2 && v === 8) cls = 'c-hol'; else if (i === 0 && p.six[d - 1] && v) cls = 'c-six';
+        const sm = typeof v === 'string' && v.length > 2 ? ' sm' : '';
+        h += `<td class="${cls}${sm}">${GM.fmt(v)}</td>`;
+      }
+      h += '</tr>';
+    });
+  }
+  return h + '</table>';
+}
+
+/* ---------- 통계 ---------- */
+function statHtml(res) {
+  let h = '<table class="gm stat" style="min-width:760px"><colgroup><col style="width:12mm"><col style="width:22mm"><col style="width:16mm"><col style="width:14mm"><col style="width:8mm"><col style="width:16mm"><col style="width:14mm"><col style="width:8mm"><col style="width:18mm"><col style="width:14mm"><col style="width:8mm"><col style="width:14mm"><col></colgroup>';
+  h += `<tr><td colspan="13" class="ttl nb">[ ${res.m} 월 안전순찰팀 ] 시간외 근무 명세서</td></tr>`;
+  h += `<tr><td colspan="13" class="nb" style="text-align:left">${NOTE}</td></tr>`;
+  h += `<tr><td>No</td><td>이름</td><td colspan="11">[${res.m}월 순찰팀] 시간외 근무 현황</td></tr>`;
+  for (const p of res.persons) {
+    h += `<tr><td>${p.id}</td><td>${esc(p.name)}</td><td>연장</td><td>${GM.fmt(p.tExt)}</td><td>H</td><td>야간</td><td>${GM.fmt(p.tNight)}</td><td>H</td><td>공휴일</td><td>${GM.fmt(p.tHol)}</td><td>H</td><td>비고</td><td style="text-align:left">${esc(p.note)}</td></tr>`;
+  }
+  h += '<tr><td>통상</td><td>공 석</td><td>연장</td><td></td><td>H</td><td>야간</td><td>0</td><td>H</td><td>공휴일</td><td></td><td>H</td><td>비고</td><td></td></tr>';
+  const lastDay = res.days.length;
+  h += `<tr><td colspan="13" style="height:60px;border:none;white-space:pre-line">상기와 같이 시간외 근무 하였음을 확인합니다.\n\n${res.y}년 ${res.m}월 ${lastDay}일\n\n교통안전부</td></tr>`;
+  return h + '</table>';
+}
+
+/* ---------- 출력 ---------- */
+function doPrint(kind) {
+  const pa = $('#printArea');
+  $('#pagestyle').textContent = '@page{size:A4 ' + (kind === 'sheet' ? 'portrait' : 'landscape') + ';margin:19.05mm 6.35mm}';   // 좁은 여백
+  if (kind === 'sheet') pa.innerHTML = `<section class="pp pp-port">${sheetHtml(false)}</section>`;
+  else {
+    const res = monthResult();
+    pa.innerHTML = `<section class="pp pp-land">${stmtHtml(res, 0)}</section><section class="pp pp-land">${stmtHtml(res, 1)}</section><section class="pp pp-land">${statHtml(res)}</section>`;
+  }
+  setTimeout(() => window.print(), 30);
+}
+window.addEventListener('afterprint', () => { $('#printArea').innerHTML = ''; });
+
+/* ---------- 근무표 수정(패턴 입력) ---------- */
+let W = null;   // 마법사 상태
+function openWizard() {
+  W = {
+    base: S.base, pattern: S.pattern ? S.pattern.map((r) => r.slice()) : Array.from({ length: 20 }, () => Array(8).fill('')),
+    cy: S.base ? +S.base.slice(0, 4) : today.getFullYear(), cm: S.base ? +S.base.slice(5, 7) : today.getMonth() + 1,
+  };
+  render();
+}
+function calHtml() {
+  const first = GM.wd(GM.dn(W.cy, W.cm, 1)), last = GM.daysInMonth(W.cy, W.cm);
+  let h = `<div class="cal"><div class="h"><button class="btn" data-act="cal-prev">‹</button><b>${W.cy}년 ${W.cm}월</b><button class="btn" data-act="cal-next">›</button></div><table><tr>${WD.map((w) => `<th>${w}</th>`).join('')}</tr><tr>`;
+  for (let i = 0; i < first; i++) h += '<td></td>';
+  for (let d = 1; d <= last; d++) {
+    const id = W.cy + '-' + GM.pad(W.cm) + '-' + GM.pad(d);
+    h += `<td><button class="${W.base === id ? 'sel' : ''}" data-act="cal-pick" data-iso="${id}">${d}</button></td>`;
+    if ((first + d) % 7 === 0 && d < last) h += '</tr><tr>';
+  }
+  return h + '</tr></table></div>';
+}
+function wizardHtml() {
+  const probs = patternProblems();
+  let h = '<div class="card"><h2>1단계 · 기준일(주기 1일차) 고르기</h2><p class="muted">달력에서 20일 주기의 첫날로 삼을 날짜를 누르세요. 근무는 이 날짜부터 20일마다 반복됩니다.</p>' + calHtml();
+  h += `<p>${W.base ? `기준일: <b>${W.base}</b> (${WD[GM.wd(GM.isoToDn(W.base))]})` : '<span class="warn">기준일을 골라 주세요.</span>'}</p></div>`;
+  h += '<div class="card"><h2>2단계 · 20일치 근무 입력</h2><p class="muted">1~20일차마다 말번·중번·초번·휴무 칸에 조 번호(1~8)를 넣습니다. 엑셀 \'패턴\' 시트의 20행×8칸을 복사해서 표에 붙여넣을 수 있습니다. 하루에 1~8이 한 번씩 들어가야 합니다.</p>';
+  h += '<div class="row"><button class="btn" data-act="sample">엑셀의 현재 패턴 넣기(예시)</button><button class="btn" data-act="clear-pat">비우기</button></div>';
+  h += '<div id="patgrid"><table class="grid20"><tr><th>일차</th><th>말번<br>1공구</th><th>말번<br>2공구</th><th>중번<br>1공구</th><th>중번<br>2공구</th><th>초번<br>1공구</th><th>초번<br>2공구</th><th>휴무</th><th>휴무</th><th></th></tr>';
+  for (let i = 0; i < 20; i++) {
+    h += `<tr data-r="${i}" class="${probs[i] ? 'bad' : ''}"><th>${i + 1}</th>` + W.pattern[i].map((v, c) => `<td><input inputmode="numeric" maxlength="1" value="${v === '' ? '' : v}" data-r="${i}" data-c="${c}"></td>`).join('') + `<td class="muted" style="text-align:left;min-width:150px">${probs[i] || '✓'}</td></tr>`;
+  }
+  h += '</table></div><div class="row"><button class="btn pri" data-act="wiz-save">저장하고 근무표 만들기</button>' + (S.pattern ? '<button class="btn" data-act="wiz-cancel">취소</button>' : '') + '</div></div>';
+  return h;
+}
+function patternProblems() {
+  const out = [];
+  for (let i = 0; i < 20; i++) {
+    const row = W.pattern[i], seen = {};
+    row.forEach((v) => { if (v !== '') seen[v] = (seen[v] || 0) + 1; });
+    const miss = [], dup = [];
+    for (let v = 1; v <= 8; v++) { if (!seen[v]) miss.push(v); else if (seen[v] > 1) dup.push(v); }
+    out[i] = miss.length || dup.length ? ('⚠ ' + (miss.length ? '빠짐 ' + miss.join(',') + ' ' : '') + (dup.length ? '겹침 ' + dup.join(',') : '')) : '';
+  }
+  return out;
+}
+
+/* ---------- 설정 ---------- */
+function holidayListHtml() {
+  const y = S.ui.y;
+  const list = [];
+  for (let m = 1; m <= 12; m++) GM.holidaysOfMonth(holFn, y, m).forEach((o) => list.push({ iso: y + '-' + GM.pad(m) + '-' + GM.pad(o.d), name: o.name }));
+  Object.keys(S.extra).forEach((k) => { if (k.slice(0, 4) === String(y) && S.extra[k] && !list.some((o) => o.iso === k)) list.push({ iso: k, name: S.extra[k] }); });
+  list.sort((a, b) => (a.iso < b.iso ? -1 : 1));
+  return list.map((o) => `<div class="row" style="margin:2px 0"><span style="min-width:100px">${o.iso} (${WD[GM.wd(GM.isoToDn(o.iso))]})</span><span style="min-width:150px">${esc(o.name)}</span><button class="btn danger" data-act="hol-del" data-iso="${o.iso}">빼기</button></div>`).join('');
+}
+function menuHtml() {
+  let h = '<div class="card"><h2>근무표 수정</h2><p class="muted">기준일과 20일 패턴을 다시 입력합니다.</p><button class="btn pri" data-act="wiz-open">근무표 수정</button></div>';
+  h += '<div class="card names"><h2>명단</h2><p class="muted">이름은 이 기기에만 저장됩니다. 숫자 근무자(1~8)와 영문 근무자(A~H)가 한 조입니다.</p><table class="grid20"><tr><th>조</th><th>순찰차</th><th>번호 근무자</th><th>영문 근무자</th></tr>';
+  for (let g = 1; g <= 8; g++) {
+    const L = String.fromCharCode(64 + g);
+    h += `<tr><th>${g}조</th><td><input style="width:70px" data-car="${g - 1}" value="${esc(S.cars[g - 1])}"></td><td>${g}. <input data-name="${g}" value="${esc(S.names[g])}"></td><td>${L}. <input data-name="${L}" value="${esc(S.names[L])}"></td></tr>`;
+  }
+  h += '</table><p class="muted">한꺼번에 붙여넣기 ("1.홍길동" 형식으로 한 줄에 한 명)</p><textarea id="namepaste" rows="3" placeholder="1.홍길동&#10;A.김철수"></textarea><div class="row"><button class="btn" data-act="names-paste">붙여넣은 이름 반영</button></div>';
+  h += '<p class="muted">공구 연락처 (근무표 오른쪽에 표시)</p><div class="row">' + S.phones.map((p, i) => `${i < 2 ? '1' : '2'}공구 <input style="width:140px;border:1px solid var(--line);border-radius:4px;padding:4px 6px" data-phone="${i}" value="${esc(p)}">`).join('') + '</div></div>';
+  const fAt = S.fetchedAt ? new Date(S.fetchedAt).toLocaleString('ko-KR') : '받은 적 없음';
+  h += `<div class="card"><h2>공휴일 (${S.ui.y}년)</h2><p class="muted">근로자의 날(5/1)은 항상 공휴일입니다. 구글 캘린더 '대한민국의 휴일'을 받아 기기에 저장하고, 오프라인이면 저장된(또는 내장) 목록을 씁니다. 마지막 받음: ${fAt}</p><div class="row"><button class="btn" data-act="hol-fetch">구글 캘린더에서 받기</button><span id="holmsg" class="muted"></span></div><div class="row"><input type="date" id="holdate"><input id="holname" placeholder="이름 (예: 임시공휴일)" style="border:1px solid var(--line);border-radius:6px;padding:5px 8px"><button class="btn" data-act="hol-add">추가</button></div>${holidayListHtml()}</div>`;
+  const n = Object.keys(S.data[S.ui.y + '-' + S.ui.m] || {}).length;
+  h += `<div class="card"><h2>대근 입력 초기화</h2><p class="muted">${S.ui.y}년 ${S.ui.m}월에 직접 입력한 칸 ${n}개를 패턴 값으로 되돌립니다.</p><button class="btn danger" data-act="reset-month">이번 달 입력 지우기</button></div>`;
+  h += '<div class="card"><h2>백업 / 복원</h2><p class="muted">패턴, 명단, 대근 입력 전체를 파일로 저장하거나 불러옵니다.</p><div class="row"><button class="btn" data-act="export">백업 저장</button><label class="btn">백업 불러오기<input type="file" id="importfile" accept="application/json" hidden></label><button class="btn danger" data-act="reset-all">모든 데이터 삭제</button></div></div>';
+  h += '<div class="card expl"><h2>설명서</h2>' + EXPL + '</div>';
+  return h;
+}
+
+const EXPL = `
+<h3>사용 순서</h3>
+<ul><li>위쪽에서 연도(2020~2050)와 월을 고르면 일·요일과 20일 주기 근무가 자동으로 채워집니다.</li>
+<li>대근·연장이 있는 날은 원래 근무자 칸에 직접 입력합니다. 시간외근무1·2와 통계는 자동 계산됩니다.</li>
+<li>'근무표 출력', '시간외실적 출력' 버튼으로 인쇄합니다 (A4, 좁은 여백, 한 페이지에 맞춤).</li></ul>
+<h3>대근 입력 형식 ('원래 근무자/대신 서는 사람', 빗금 뒤가 연장자)</h3>
+<table><tr><th>입력</th><th>뜻</th><th>명세서 야간 줄</th></tr>
+<tr><td>7/5</td><td>7 연차, 5가 대신 근무</td><td>연/5</td></tr><tr><td>G/E</td><td>G 연차, E가 대신</td><td>연/E</td></tr>
+<tr><td>건7/5 · 병G/E · 공7/5</td><td>건강검진·병가·공무외출</td><td>건/5 · 병/E · 공/5</td></tr>
+<tr><td>1/7C</td><td>1 연차, 7과 C가 나눠 근무 (각 3.5 더함)</td><td>연/7C</td></tr>
+<tr><td>헌1/8</td><td>앞 한 글자는 어떤 글자든 사유 문자</td><td>헌/8</td></tr></table>
+<h3>계산 규칙</h3>
+<ul><li>야간: 말번 7.5 / 중번 0.5 / 초번 '초번' / 휴무 '휴'. 연장으로 중번을 이으면 0.5, 말번을 이으면 7.5.</li>
+<li>휴일 8: 법정 공휴일(근로자의 날 포함, 토·일과 겹쳐도)에 초·중·말번 근무자.</li>
+<li>연장: 초+중 7.5, 중+말 7.5, 초+말 8. 공휴일이면 초+중 10, 초+말 11.</li>
+<li>주6일 근무(월~일 중 6일): 그 주 일요일 연장 8 (그 주에 휴가가 있으면 5.5). 일요일이 공휴일이면 연장 없음.</li>
+<li>휴무일 연장 (그 주 휴무 2개): 첫째 8 (중번 야간 0.5, 말번 7.5) · 두번째 초번 11 · 휴가 사용 + 두번째: 초중 16(0.5), 중말 15(7.5), 초말 16(7.5).</li>
+<li>휴무일 연장일이 공휴일이면 연장에 8만 넣고 휴일은 비웁니다.</li>
+<li>휴가 판단: 그 사람 칸이 다른 사람 번호로 바뀐 날(사유 문자 무관). 이 기기에 저장된 지난달 입력도 함께 봅니다.</li></ul>
+<h3>색</h3><p>${legend()} 토·일은 날짜·요일 칸만, 공휴일은 날짜·요일과 말·중·초번 칸(휴무 칸 제외), 6일근무는 그 주 일요일 칸.</p>`;
+
+/* ---------- 화면 ---------- */
+function render() {
+  const app = $('#app');
+  if (!S.pattern && !W) { openWizard(); return; }
+  if (W) { app.innerHTML = '<div class="bar"><h1>순찰 근무표 2</h1><span class="muted">' + (S.pattern ? '근무표 수정' : '처음 설정') + '</span></div><main>' + wizardHtml() + '</main>'; return; }
+  const { y, m, tab } = S.ui;
+  let h = '<div class="bar"><h1>순찰 근무표 2</h1><select id="sy">';
+  for (let i = 2020; i <= 2050; i++) h += `<option ${i === y ? 'selected' : ''}>${i}</option>`;
+  h += '</select>년<select id="sm">';
+  for (let i = 1; i <= 12; i++) h += `<option ${i === m ? 'selected' : ''}>${i}</option>`;
+  h += '</select>월<div class="tabs" role="tablist">';
+  [['sheet', '근무표'], ['o1', '시간외근무1'], ['o2', '시간외근무2'], ['stat', '시간외근무_통계'], ['menu', '설정']].forEach(([k, t]) => {
+    h += `<button class="tab" role="tab" aria-selected="${tab === k}" data-tab="${k}">${t}</button>`;
+  });
+  h += '</div><span class="sp"></span><button class="btn" data-act="print-sheet">근무표 출력</button><button class="btn" data-act="print-ot">시간외실적 출력</button></div><main>';
+  if (tab === 'sheet') h += '<div class="scroll">' + sheetHtml(true) + '</div><p class="muted">칸을 눌러 대근을 입력하세요 (예: 7/5, 건7/5, 1/7C). 입력한 칸은 파란 테두리로 표시되고, 지우면 패턴 값으로 돌아갑니다.</p>';
+  else if (tab === 'o1' || tab === 'o2') h += '<div class="scroll">' + stmtHtml(monthResult(), tab === 'o1' ? 0 : 1) + '</div>';
+  else if (tab === 'stat') h += '<div class="scroll">' + statHtml(monthResult()) + '</div>';
+  else h += menuHtml();
+  app.innerHTML = h + '</main>';
+}
+
+/* ---------- 이벤트 ---------- */
+document.addEventListener('click', (e) => {
+  const tabBtn = e.target.closest('[data-tab]');
+  if (tabBtn) { S.ui.tab = tabBtn.dataset.tab; save(); render(); return; }
+  const b = e.target.closest('[data-act]');
+  if (!b) return;
+  const a = b.dataset.act;
+  if (a === 'print-sheet') doPrint('sheet');
+  else if (a === 'print-ot') doPrint('ot');
+  else if (a === 'wiz-open') openWizard();
+  else if (a === 'wiz-cancel') { W = null; render(); }
+  else if (a === 'cal-prev') { W.cm--; if (W.cm < 1) { W.cm = 12; W.cy--; } render(); }
+  else if (a === 'cal-next') { W.cm++; if (W.cm > 12) { W.cm = 1; W.cy++; } render(); }
+  else if (a === 'cal-pick') { W.base = b.dataset.iso; render(); }
+  else if (a === 'sample') { W.pattern = SAMPLE_PATTERN.map((r) => r.slice()); if (!W.base) { W.base = '2026-10-01'; W.cy = 2026; W.cm = 10; } render(); }
+  else if (a === 'clear-pat') { W.pattern = Array.from({ length: 20 }, () => Array(8).fill('')); render(); }
+  else if (a === 'wiz-save') wizardSave();
+  else if (a === 'names-paste') {
+    $('#namepaste').value.split(/\r?\n/).forEach((l) => { const mm = /^\s*([1-8A-Ha-h])\s*[.．]\s*(.+?)\s*$/.exec(l); if (mm) S.names[mm[1].toUpperCase()] = mm[2]; });
+    save(); render();
+  }
+  else if (a === 'hol-fetch') fetchHolidays(true);
+  else if (a === 'hol-add') {
+    const d = $('#holdate').value, n = $('#holname').value.trim() || '임시공휴일';
+    if (d) { S.extra[d] = n; save(); rebuildHol(); render(); }
+  }
+  else if (a === 'hol-del') { S.extra[b.dataset.iso] = null; save(); rebuildHol(); render(); }
+  else if (a === 'reset-month') {
+    if (confirm(S.ui.y + '년 ' + S.ui.m + '월에 입력한 대근 표기를 모두 지울까요?')) { delete S.data[S.ui.y + '-' + S.ui.m]; save(); render(); }
+  }
+  else if (a === 'export') {
+    const blob = new Blob([JSON.stringify(S)], { type: 'application/json' });
+    const el = document.createElement('a'); el.href = URL.createObjectURL(blob); el.download = '근무표_백업_' + new Date().toISOString().slice(0, 10) + '.json'; el.click();
+  }
+  else if (a === 'reset-all') { if (confirm('이 기기에 저장된 모든 데이터를 지웁니다. 계속할까요?')) { try { localStorage.removeItem(KEY); } catch (x) { /* 무시 */ } location.reload(); } }
+});
+document.addEventListener('change', (e) => {
+  const t = e.target;
+  if (t.id === 'sy' || t.id === 'sm') { S.ui.y = +$('#sy').value; S.ui.m = +$('#sm').value; save(); render(); return; }
+  if (t.id === 'importfile') {
+    const f = t.files[0]; if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => { try { const o = JSON.parse(rd.result); if (!o.pattern) throw 0; S = Object.assign(S, o); save(); rebuildHol(); render(); } catch (x) { alert('백업 파일을 읽지 못했습니다.'); } };
+    rd.readAsText(f); return;
+  }
+  if (t.dataset.name !== undefined) { S.names[t.dataset.name] = t.value.trim(); save(); return; }
+  if (t.dataset.car !== undefined) { S.cars[+t.dataset.car] = t.value.trim(); save(); return; }
+  if (t.dataset.phone !== undefined) { S.phones[+t.dataset.phone] = t.value.trim(); save(); return; }
+  if (t.closest('table.sheet') && t.dataset.d) {
+    const d = +t.dataset.d, c = +t.dataset.c, key = d + '|' + c, mk = S.ui.y + '-' + S.ui.m;
+    const auto = GM.autoCell(cfg(), GM.dn(S.ui.y, S.ui.m, d), c);
+    const v = t.value.trim();
+    const store = (S.data[mk] = S.data[mk] || {});
+    if (v === '' || v === auto) { delete store[key]; t.value = auto; } else store[key] = v;
+    if (!Object.keys(store).length) delete S.data[mk];
+    save(); paintSheet();
+  }
+});
+document.addEventListener('input', (e) => {
+  const t = e.target;
+  if (W && t.closest('#patgrid') && t.dataset.r !== undefined) {
+    const v = t.value.replace(/[^1-8]/g, '');
+    t.value = v; W.pattern[+t.dataset.r][+t.dataset.c] = v === '' ? '' : +v;
+    if (v) { const nx = t.closest('td').nextElementSibling; if (nx && nx.querySelector('input')) nx.querySelector('input').focus(); }
+    refreshProblems();
+  }
+});
+document.addEventListener('paste', (e) => {
+  if (!W || !e.target.closest || !e.target.closest('#patgrid')) return;
+  const text = (e.clipboardData || window.clipboardData).getData('text');
+  const rows = GM.parsePatternText(text);
+  if (!rows.length) return;
+  e.preventDefault();
+  const r0 = e.target.dataset.r !== undefined && rows.length < 20 ? +e.target.dataset.r : 0;
+  rows.forEach((r, i) => { if (r0 + i < 20) W.pattern[r0 + i] = r.slice(); });
+  render();
+});
+function refreshProblems() {
+  const probs = patternProblems();
+  document.querySelectorAll('#patgrid tr[data-r]').forEach((tr) => {
+    const i = +tr.dataset.r; tr.className = probs[i] ? 'bad' : ''; tr.lastElementChild.textContent = probs[i] || '✓';
+  });
+}
+function wizardSave() {
+  if (!W.base) { alert('달력에서 기준일을 먼저 골라 주세요.'); return; }
+  const probs = patternProblems().map((p, i) => (p ? (i + 1) + '일차: ' + p : '')).filter(Boolean);
+  if (W.pattern.some((r) => r.some((v) => v === ''))) { alert('비어 있는 칸이 있습니다. 20일치를 모두 채워 주세요.'); return; }
+  if (probs.length && !confirm(probs.slice(0, 6).join('\n') + '\n\n하루에 1~8이 한 번씩 들어가지 않았습니다. 그래도 저장할까요?')) return;
+  const changed = S.pattern && JSON.stringify(S.pattern) !== JSON.stringify(W.pattern) || (S.base && S.base !== W.base);
+  if (changed && Object.keys(S.data).length && confirm('패턴이 바뀌었습니다. 이미 입력한 대근 표기를 모두 지울까요?\n(취소: 그대로 둠)')) S.data = {};
+  S.pattern = W.pattern.map((r) => r.map(Number)); S.base = W.base;
+  S.ui.tab = 'sheet'; W = null; save(); render();
+}
+// 근무표 입력 후 색·표시만 다시 칠한다 (입력 중인 칸의 포커스를 유지)
+function paintSheet() {
+  const rows = GM.monthGrid(cfg(), S.ui.y, S.ui.m);
+  rows.forEach((r) => {
+    const tr = document.querySelector(`table.sheet tr[data-d="${r.d}"]`); if (!tr) return;
+    r.cells.forEach((c, i) => {
+      const td = tr.querySelector(`td.cell[data-c="${i}"]`); if (!td) return;
+      td.classList.toggle('ov', c.input);
+      td.classList.toggle('c-hol', !!(r.hol && i < 12));
+      td.classList.toggle('c-six', !(r.hol && i < 12) && c.mint);
+    });
+  });
+}
+
+/* ---------- 공휴일 받기 (구글 캘린더) ---------- */
+const ICS = 'https://calendar.google.com/calendar/ical/ko.south_korea%23holiday%40group.v.calendar.google.com/public/basic.ics';
+async function fetchHolidays(manual) {
+  const msg = (t) => { const el = $('#holmsg'); if (el) el.textContent = t; };
+  if (!navigator.onLine) { msg('오프라인입니다. 저장된 목록을 씁니다.'); return; }
+  try {
+    msg('받는 중…');
+    let txt;
+    if (window.gmFetchHolidays) txt = await window.gmFetchHolidays();   // Windows 프로그램: 프로그램이 대신 받아 줌
+    else { const r = await fetch(ICS, { cache: 'no-store' }); if (!r.ok) throw new Error(r.status); txt = await r.text(); }
+    const got = GM.parseICS(txt);
+    if (!Object.keys(got).length) throw new Error('empty');
+    S.fetched = got; S.fetchedAt = Date.now(); save(); rebuildHol(); msg('받았습니다 (' + Object.keys(got).length + '일).');
+    if (manual) render(); else if (S.pattern && !W) render();
+  } catch (x) {
+    msg('이 환경에서는 구글 캘린더를 직접 받을 수 없어 내장 목록(2020~2050)을 씁니다. 임시공휴일은 아래에서 직접 추가하세요.');
+  }
+}
+
+render();
+if (S.pattern && navigator.onLine && Date.now() - S.fetchedAt > 7 * 864e5) fetchHolidays(false);
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+</script>
+</body>
+</html>
