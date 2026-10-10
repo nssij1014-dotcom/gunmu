@@ -353,10 +353,22 @@
   }
 
   const STAR4 = /(RIGHT\(계산!\$[A-Z]+\$\d+,1\)="\*"),4,/g;
-  // 주6일 판정 뒤에 '여섯째 근무일(일요일 휴무면 토요일)이 공휴일이 아님' 조건을 붙인다 (연장 수식·민트 조건부서식)
-  const SIX = /(INDEX\(주간근무,MOD\((DATE\(근무표!\$E\$1,근무표!\$H\$1,[A-Z]+\$3\))-기준일,20\)\+1,(\d)\)=6)(?!,COUNTIF\(공휴일목록)/g;
-  const patchFormulaXml = xml => xml.replace(STAR4, '$1,3.5,').split('"말중"),3.5,4)').join('"말중"),3.5,3.5)')
-    .replace(SIX, (all, head, date, g) => `${head},COUNTIF(공휴일목록,${date}-(INDEX(근무구분,MOD(${date}-기준일,20)+1,${g})="휴무"))=0`);
+  // 예전 앱이 붙이던 '주6일째 근무일이 공휴일이면 6일 연장·민트 없음' 조건 → 없앤다 (이제 공휴일이어도 연장)
+  const OLD_SIX = /,COUNTIF\(공휴일목록,(DATE\(근무표!\$E\$1,근무표!\$H\$1,[A-Z]+\$3\))-\(INDEX\(근무구분,MOD\(\1-기준일,20\)\+1,\d\)="휴무"\)\)=0/g;
+  // 휴일 칸 수식 'IF(AND(COUNTIF(공휴일목록,오늘)>0,…),8,"")' 의 AND 맨 앞에 '오늘이 주6일째 근무일이 아님'을 붙인다
+  const HOL = /(<c r="[A-Z]+(\d+)"[^>]*>\s*<f>IF\(([A-Z]+)\$3="","",IF\(AND\()(?!NOT\(AND\(INDEX\(주간근무)(COUNTIF\(공휴일목록,DATE\(근무표!\$E\$1,근무표!\$H\$1,\3\$3\)\)&gt;0,)/g;
+  function sixthCond(col, g) {   // 그날(D)이 g조 주6일 근무 주의 여섯째 근무일 (일요일 S = D+7-WEEKDAY(D,2))
+    const d = `DATE(근무표!$E$1,근무표!$H$1,${col}$3)`, s = `(${d}+7-WEEKDAY(${d},2))`;
+    return `AND(INDEX(주간근무,MOD(${s}-기준일,20)+1,${g})=6,${d}=${s}-(INDEX(근무구분,MOD(${s}-기준일,20)+1,${g})="휴무"))`;
+  }
+  const patchFormulaXml = (xml, sheetIndex) => xml.replace(STAR4, '$1,3.5,').split('"말중"),3.5,4)').join('"말중"),3.5,3.5)')
+    .replace(OLD_SIX, '')
+    .replace(HOL, (all, head, row, col, rest) => {
+      const r = +row;
+      if (r < 7 || (r - 7) % 3) return all;   // 휴일 줄(7, 10, … 28행)만
+      const g = Math.floor(((sheetIndex || 0) * 8 + (r - 7) / 3) / 2) + 1;
+      return `${head}NOT(${sixthCond(col, g)}),${rest}`;
+    });
   // 계산 시트: 사유 글자를 건·병·공·연 넷만 보던 수식 → 맨 앞 한 글자가 숫자·영문·'/'가 아니면 사유 (파이썬 patch_calc_xml)
   const OLD_PREFIX = /OR\(LEFT\(TRIM\(([^()&]+)&amp;""\),1\)="[건병공연]",LEFT\(TRIM\(\1&amp;""\),1\)="[건병공연]",LEFT\(TRIM\(\1&amp;""\),1\)="[건병공연]",LEFT\(TRIM\(\1&amp;""\),1\)="[건병공연]"\)/g;
   const patchCalcXml = xml => xml.replace(OLD_PREFIX, (all, ref) =>
@@ -405,7 +417,7 @@
   }
 
   async function saveWorkbook(buf, info, y, m, edits, groupEdits, outType, otEdits) {
-    const fixes = { '계산': patchCalcXml }; OT_SHEETS.forEach(n => { fixes[n] = patchFormulaXml; });
+    const fixes = { '계산': patchCalcXml }; OT_SHEETS.forEach((n, s) => { fixes[n] = xml => patchFormulaXml(xml, s); });
     const cells = { [SHEET]: buildCellValues(info, y, m, edits, groupEdits) };
     if ((info.labor_rows || []).length) {   // 원본 공휴일 표에 없던 근로자의 날을 빈 줄에 써 넣어 엑셀 수식(공휴일목록)도 같게
       cells['공휴일'] = {};

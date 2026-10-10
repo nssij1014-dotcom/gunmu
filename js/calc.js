@@ -179,8 +179,13 @@
     return c;
   }
 
-  /** 주6일 근무 주(일요일 n)의 여섯째 근무일: 일요일이 휴무면 토요일. 공휴일이면 6일 연장·민트 없음 */
+  /** 주6일 근무 주(일요일 n)의 여섯째 근무일: 일요일이 휴무면 토요일 */
   const sixthDay = (info, n, g) => n - (groupShift(info, n, g) === '휴무' ? 1 : 0);
+  /** n이 g조 주6일 근무 주(월~일)의 여섯째 근무일인가. 이날이 공휴일이면 휴일 8은 비우고 일요일 연장(8/5.5, 민트)에만 (파이썬 is_sixth_day) */
+  function isSixthDay(info, n, g) {
+    const sun = n + 6 - weekday(n);
+    return weekCount(info, sun, g) === 6 && sixthDay(info, sun, g) === n;
+  }
 
   function personDay(cells, key, letter) {
     const nums = [], lets = [];
@@ -258,7 +263,7 @@
         const [bp, bq, br] = states[dd];
         const isHol = holDays.has(dd + 1);
         const a = extBase(info, n, g, bp, br, isHol);
-        const six = weekday(n) === 6 && weekCount(info, n, g) === 6 && !(iso(sixthDay(info, n, g)) in info.holidays);
+        const six = weekday(n) === 6 && weekCount(info, n, g) === 6;   // 여섯째 근무일이 공휴일이어도 연장
         let b = 0;
         if (six) {
           let leave = false;
@@ -267,7 +272,7 @@
         }
         ext.push(a + b === 0 ? '' : a + b);
         night.push(nightValue(bp, bq, br));
-        hol.push(isHol && ((bq === '' && ['초번', '중번', '말번'].includes(bp)) || (bp === '휴무' && br !== '')) ? 8 : '');
+        hol.push(isHol && ((bq === '' && ['초번', '중번', '말번'].includes(bp)) || (bp === '휴무' && br !== '')) && !isSixthDay(info, n, g) ? 8 : '');
         green.push(six);
       }
       const edited = new Set();   // 직접 고친 칸 'k:dd' — 계산값 대신 그 값, 합계·통계도 그 값으로
