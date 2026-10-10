@@ -357,6 +357,10 @@
   const SIX = /(INDEX\(주간근무,MOD\((DATE\(근무표!\$E\$1,근무표!\$H\$1,[A-Z]+\$3\))-기준일,20\)\+1,(\d)\)=6)(?!,COUNTIF\(공휴일목록)/g;
   const patchFormulaXml = xml => xml.replace(STAR4, '$1,3.5,').split('"말중"),3.5,4)').join('"말중"),3.5,3.5)')
     .replace(SIX, (all, head, date, g) => `${head},COUNTIF(공휴일목록,${date}-(INDEX(근무구분,MOD(${date}-기준일,20)+1,${g})="휴무"))=0`);
+  // 계산 시트: 사유 글자를 건·병·공·연 넷만 보던 수식 → 맨 앞 한 글자가 숫자·영문·'/'가 아니면 사유 (파이썬 patch_calc_xml)
+  const OLD_PREFIX = /OR\(LEFT\(TRIM\(([^()&]+)&amp;""\),1\)="[건병공연]",LEFT\(TRIM\(\1&amp;""\),1\)="[건병공연]",LEFT\(TRIM\(\1&amp;""\),1\)="[건병공연]",LEFT\(TRIM\(\1&amp;""\),1\)="[건병공연]"\)/g;
+  const patchCalcXml = xml => xml.replace(OLD_PREFIX, (all, ref) =>
+    `AND(LEN(TRIM(${ref}&amp;""))>1,ISERROR(FIND(UPPER(LEFT(TRIM(${ref}&amp;""),1)),"${Calc.NOT_PREFIX}")))`);
 
   /** 원본 파일 + {시트: {주소: 값}} → 새 파일(Blob 또는 Uint8Array) */
   async function savePatched(buf, cellValues, formulaFixes, outType) {
@@ -401,7 +405,7 @@
   }
 
   async function saveWorkbook(buf, info, y, m, edits, groupEdits, outType, otEdits) {
-    const fixes = {}; OT_SHEETS.forEach(n => { fixes[n] = patchFormulaXml; });
+    const fixes = { '계산': patchCalcXml }; OT_SHEETS.forEach(n => { fixes[n] = patchFormulaXml; });
     const cells = { [SHEET]: buildCellValues(info, y, m, edits, groupEdits) };
     if ((info.labor_rows || []).length) {   // 원본 공휴일 표에 없던 근로자의 날을 빈 줄에 써 넣어 엑셀 수식(공휴일목록)도 같게
       cells['공휴일'] = {};

@@ -5,7 +5,10 @@
   'use strict';
   const PINK = '#F99F9F', YELLOW = '#F8F056', GREEN = '#99FFCC';
   const WEEKDAYS = '월화수목금토일';
-  const PREFIXES = '건병공연';
+  // 대근 사유 글자: 칸 맨 앞 한 글자가 숫자·영문·'/'가 아니면 어떤 글자든(건·병·공·연·헌·기 …) 사유 (파이썬 split_prefix)
+  const NOT_PREFIX = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ/';
+  const splitPrefix = t => (Array.from(t).length > 1 && !NOT_PREFIX.includes(Array.from(t)[0].toUpperCase())
+    ? [Array.from(t)[0], Array.from(t).slice(1).join('')] : ['', t]);
   const SHIFTS = ['말번', '말번', '중번', '중번', '초번', '초번', '휴무', '휴무'];
   const DUTY_COLS = []; for (let c = 3; c <= 18; c++) DUTY_COLS.push(c);
   const MAX_COL = 21;
@@ -42,7 +45,7 @@
 
   function groupOf(text, letterCol) {
     let t = pyStrip(text || '');
-    if (t && PREFIXES.includes(t[0])) t = t.slice(1);
+    t = splitPrefix(t)[1];
     if (t.includes('/')) t = pyStrip(t.split('/')[0]);
     if (!t) return null;
     let n;
@@ -150,8 +153,8 @@
   // ---------------------------------------------------------------- 시간외 (엑셀 '계산' 시트 수식 옮김)
   function parseCell(raw) {
     const t = xtrim(raw || '');
-    let body, pre;
-    if (t && PREFIXES.includes(t[0])) { body = t.slice(1); pre = t[0]; } else { body = t; pre = '연'; }
+    let [pre, body] = splitPrefix(t);
+    pre = pre || '연';
     const i = body.indexOf('/');
     if (i >= 0) return [xtrim(body.slice(0, i)), xtrim(body.slice(i + 1)), pre];
     return [body, '', pre];
@@ -421,7 +424,7 @@
   }
 
   const api = { PINK, YELLOW, GREEN, DUTY_COLS, OT_SHEETS, STAT_SHEET, dn, iso, weekday, daysIn, colLetter, pyRound,
-    dutyKey, effectiveEdits, buildSheet, buildGrid, compute, allSheets, applyDutyEdit, applyGroupEdit, applyOtEdit, otCell, otValue,
+    dutyKey, NOT_PREFIX, effectiveEdits, buildSheet, buildGrid, compute, allSheets, applyDutyEdit, applyGroupEdit, applyOtEdit, otCell, otValue,
     personNames, groupValues };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Calc = api;
 })(this);
