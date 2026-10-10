@@ -360,7 +360,7 @@
   // 계산 시트: 사유 글자를 건·병·공·연 넷만 보던 수식 → 맨 앞 한 글자가 숫자·영문·'/'가 아니면 사유 (파이썬 patch_calc_xml)
   const OLD_PREFIX = /OR\(LEFT\(TRIM\(([^()&]+)&amp;""\),1\)="[건병공연]",LEFT\(TRIM\(\1&amp;""\),1\)="[건병공연]",LEFT\(TRIM\(\1&amp;""\),1\)="[건병공연]",LEFT\(TRIM\(\1&amp;""\),1\)="[건병공연]"\)/g;
   const patchCalcXml = xml => xml.replace(OLD_PREFIX, (all, ref) =>
-    `AND(LEN(TRIM(${ref}&amp;""))>1,ISERROR(FIND(UPPER(LEFT(TRIM(${ref}&amp;""),1)),"${Calc.NOT_PREFIX}")))`);
+    `AND(TRIM(${ref}&amp;"")&lt;&gt;"",NOT(ISNUMBER(FIND(LEFT(TRIM(${ref}&amp;""),1),"${Calc.NOT_PREFIX}"))))`);
 
   /** 원본 파일 + {시트: {주소: 값}} → 새 파일(Blob 또는 Uint8Array) */
   async function savePatched(buf, cellValues, formulaFixes, outType) {

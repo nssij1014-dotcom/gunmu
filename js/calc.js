@@ -5,9 +5,9 @@
   'use strict';
   const PINK = '#F99F9F', YELLOW = '#F8F056', GREEN = '#99FFCC';
   const WEEKDAYS = '월화수목금토일';
-  // 대근 사유 글자: 칸 맨 앞 한 글자가 숫자·영문·'/'가 아니면 어떤 글자든(건·병·공·연·헌·기 …) 사유 (파이썬 split_prefix)
-  const NOT_PREFIX = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ/';
-  const splitPrefix = t => (Array.from(t).length > 1 && !NOT_PREFIX.includes(Array.from(t)[0].toUpperCase())
+  // 대근 사유 글자: 칸 맨 앞 글자가 조 표시(1~8, A~H, 대소문자 구분)가 아니면 어떤 글자든 사유 (엑셀 계산 시트·파이썬 split_prefix)
+  const NOT_PREFIX = '12345678ABCDEFGH';
+  const splitPrefix = t => (t && !NOT_PREFIX.includes(Array.from(t)[0])
     ? [Array.from(t)[0], Array.from(t).slice(1).join('')] : ['', t]);
   const SHIFTS = ['말번', '말번', '중번', '중번', '초번', '초번', '휴무', '휴무'];
   const DUTY_COLS = []; for (let c = 3; c <= 18; c++) DUTY_COLS.push(c);
